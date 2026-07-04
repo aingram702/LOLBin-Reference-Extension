@@ -96,9 +96,22 @@ def write(entries):
 # ---------------------------------------------------------------------------
 
 def _extract_frontmatter(raw):
-    raw = raw.lstrip("﻿")  # tolerate a UTF-8 BOM
-    m = re.match(r"^---\s*\n(.*?)\n---\s*\n", raw, re.S)
-    return m.group(1) if m else ""
+    """Return the leading YAML block of a GTFOBins file.
+
+    GTFOBins entries are pure YAML documents delimited by `---` and closed by
+    `---`, `...`, or end-of-file (they have no file extension). This also
+    handles Jekyll-style `---`/`---` frontmatter, a UTF-8 BOM, and CRLF.
+    """
+    raw = raw.lstrip("﻿").replace("\r\n", "\n")
+    lines = raw.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return ""
+    out = []
+    for line in lines[1:]:
+        if line.strip() in ("---", "..."):
+            break
+        out.append(line)
+    return "\n".join(out)
 
 
 def _parse_functions_manual(fm):
@@ -183,6 +196,8 @@ def parse_gtfobins(raw):
         meta = yaml.safe_load(fm) or {}
         funcs = meta.get("functions") or {}
         out, descriptions = [], []
+        if meta.get("description"):  # top-level entry description, if any
+            descriptions.append(str(meta["description"]).strip())
         for name, items in funcs.items():
             codes = []
             for it in (items or []):
@@ -230,6 +245,10 @@ def _gtfobins_sources(get):
 
     repo_url = "https://github.com/GTFOBins/GTFOBins.github.io.git"
 
+    def slug_of(path):
+        base = os.path.basename(path)
+        return base[:-3] if base.endswith(".md") else base
+
     # --- Strategy 1: shallow clone (preferred) ------------------------------
     try:
         with tempfile.TemporaryDirectory() as td:
@@ -237,18 +256,29 @@ def _gtfobins_sources(get):
             subprocess.run(
                 ["git", "clone", "--depth", "1", "--quiet", repo_url, td],
                 check=True, capture_output=True, text=True, timeout=600)
-            md_files = sorted(glob.glob(os.path.join(td, "**", "*.md"), recursive=True))
+
+            # Entries live as EXTENSIONLESS YAML files under _gtfobins/. Prefer
+            # that directory; otherwise scan every small file (dir-agnostic).
+            gtfo_dir = os.path.join(td, "_gtfobins")
+            if os.path.isdir(gtfo_dir):
+                candidates = sorted(p for p in glob.glob(os.path.join(gtfo_dir, "*"))
+                                    if os.path.isfile(p))
+            else:
+                candidates = sorted(
+                    p for p in glob.glob(os.path.join(td, "**", "*"), recursive=True)
+                    if os.path.isfile(p) and os.path.getsize(p) < 100_000)
+
             kept = 0
-            for f in md_files:
+            for f in candidates:
                 raw = Path(f).read_text(encoding="utf-8", errors="replace")
                 if _is_gtfobins_page(raw):
                     kept += 1
-                    yield os.path.basename(f)[:-3], raw
-            print(f"  cloned {len(md_files)} .md files, {kept} are GTFOBins pages")
+                    yield slug_of(f), raw
+            print(f"  scanned {len(candidates)} files, {kept} are GTFOBins entries")
             if kept:
                 return
-            sample = [os.path.relpath(p, td) for p in md_files[:8]]
-            print(f"  no GTFOBins pages found in clone; sample paths: {sample}")
+            sample = [os.path.relpath(p, td) for p in candidates[:12]]
+            print(f"  no GTFOBins entries found in clone; sample paths: {sample}")
             print("  trying the GitHub API ...")
     except FileNotFoundError:
         print("  git not found on PATH; falling back to the GitHub API ...")
@@ -268,17 +298,18 @@ def _gtfobins_sources(get):
         raise RuntimeError(
             f"Could not list GTFOBins files via the GitHub API ({msg!r}). "
             f"Install git (preferred) or set GITHUB_TOKEN and retry.")
-    md_paths = [t["path"] for t in tree["tree"]
-                if t.get("type") == "blob" and t["path"].endswith(".md")]
-    print(f"  {len(md_paths)} .md files in tree; scanning for GTFOBins pages ...")
+    # Files under _gtfobins/ (extensionless entries); fall back to every blob.
+    blobs = [t["path"] for t in tree["tree"] if t.get("type") == "blob"]
+    paths = [p for p in blobs if p.startswith("_gtfobins/")] or blobs
+    print(f"  scanning {len(paths)} tree files for GTFOBins entries ...")
     raw_base = f"https://raw.githubusercontent.com/GTFOBins/GTFOBins.github.io/{branch}"
     kept = 0
-    for p in md_paths:
+    for p in paths:
         raw = get(f"{raw_base}/{p}").decode("utf-8", "replace")
         if _is_gtfobins_page(raw):
             kept += 1
-            yield os.path.basename(p)[:-3], raw
-    print(f"  {kept} GTFOBins pages via API")
+            yield slug_of(p), raw
+    print(f"  {kept} GTFOBins entries via API")
 
 
 # ---------------------------------------------------------------------------
