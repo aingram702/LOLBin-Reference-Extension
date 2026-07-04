@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LOLBin Reference Tool</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🛡️ LOLBin Reference</h1>
+    <div class="os-filter">
+      <button class="filter-btn active" data-os="all">All</button>
+      <button class="filter-btn" data-os="windows">Windows</button>
+      <button class="filter-btn" data-os="linux">Linux</button>
+    </div>
+  </div>
+
+  <input type="text" id="searchBox" placeholder="Search binary name, category, or technique..." autofocus>
+
+  <div id="resultsCount"></div>
+  <div id="results"></div>
+
+  <div class="footer">
+    <span id="dbStatus">Loading database...</span>
+    <button id="syncBtn" title="Sync Pro Database (requires API key)">🔄 Sync Pro</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
