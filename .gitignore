@@ -1,0 +1,22 @@
+# Secrets / local env
+.env
+backend/.env
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+lolbin.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

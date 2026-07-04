@@ -98,8 +98,15 @@ def delete_custom_entry(
     db: Session = Depends(get_db),
     org: Organization = Depends(require_pro_tier)
 ):
+    # Validate the UUID up front so a malformed id yields a clean 404 rather
+    # than a 500 from the database driver rejecting the cast.
+    try:
+        entry_uuid = uuid.UUID(entry_id)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=404, detail="Entry not found")
+
     entry = db.query(CustomEntry).filter(
-        and_(CustomEntry.id == entry_id, CustomEntry.org_id == org.id)
+        and_(CustomEntry.id == entry_uuid, CustomEntry.org_id == org.id)
     ).first()
 
     if not entry:
