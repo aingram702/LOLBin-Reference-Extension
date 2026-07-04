@@ -102,6 +102,33 @@ def build_live():
         with urllib.request.urlopen(req, timeout=60) as r:
             return r.read()
 
+    seen_ids = set()
+
+    def uid(base, *hints):
+        """Return a unique id, disambiguating collisions with the given hints.
+
+        LOLBAS ships several binaries that share a filename stem across kinds
+        (e.g. SyncAppvPublishingServer.exe vs .vbs), and a few names overlap
+        between Windows and Linux (ftp, curl). Deriving the id from the stem
+        alone therefore collides; this appends a hint (file extension or 'nix')
+        and finally a numeric suffix to guarantee uniqueness.
+        """
+        base = base.lower()
+        candidates = [base] + [f"{base}-{h}" for h in hints if h]
+        for cand in candidates:
+            if cand not in seen_ids:
+                seen_ids.add(cand)
+                return cand
+        n = 2
+        while f"{base}-{n}" in seen_ids:
+            n += 1
+        seen_ids.add(f"{base}-{n}")
+        return f"{base}-{n}"
+
+    def http_only(urls):
+        return [u for u in urls if isinstance(u, str)
+                and (u.startswith("http://") or u.startswith("https://"))]
+
     entries = []
 
     # ---- LOLBAS (Windows) --------------------------------------------------
@@ -110,6 +137,7 @@ def build_live():
     for b in lolbas:
         name = b.get("Name", "")
         slug = Path(name).stem  # certutil.exe -> certutil
+        ext = Path(name).suffix.lstrip(".").lower()  # exe / vbs / dll
         commands = b.get("Commands") or []
         cmds = [c.get("Command", "").strip() for c in commands if c.get("Command")]
         cats = sorted({c.get("Category", "") for c in commands if c.get("Category")})
@@ -124,7 +152,7 @@ def build_live():
         if not cmds:
             continue
         entries.append({
-            "id": slug.lower(),
+            "id": uid(slug, ext),
             "name": name,
             "os": "windows",
             "category": " / ".join(cats) or "Execution",
@@ -132,7 +160,7 @@ def build_live():
             "example_command": cmds[0],
             "alt_commands": cmds[1:],
             "detection_notes": " ".join(detects[:4]) or None,
-            "references": refs[:6],
+            "references": http_only(refs)[:6],
         })
 
     # ---- GTFOBins (Linux) --------------------------------------------------
@@ -152,7 +180,7 @@ def build_live():
         if not cmds:
             cmds = [f"# See {gtfo(slug)}"]
         entries.append({
-            "id": slug.lower(),
+            "id": uid(slug, "nix"),
             "name": slug,
             "os": "linux",
             "category": " / ".join(sorted(set(cats))[:3]) or "Shell / Privilege Escalation",
