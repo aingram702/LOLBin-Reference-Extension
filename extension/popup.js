@@ -2,8 +2,7 @@ let db = [];
 let currentOsFilter = "all";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const { lolbinDb } = await chrome.storage.local.get("lolbinDb");
-  db = lolbinDb || [];
+  db = await loadDatabase();
   document.getElementById("dbStatus").textContent = `${db.length} entries loaded`;
   renderResults(db);
 
@@ -19,6 +18,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 });
+
+// Load the database from local storage, falling back to the bundled JSON.
+// The background service worker normally seeds storage on install, but MV3
+// service workers are ephemeral and onInstalled does not fire on every
+// startup — so if storage was cleared the popup must self-heal.
+async function loadDatabase() {
+  try {
+    const { lolbinDb } = await chrome.storage.local.get("lolbinDb");
+    if (Array.isArray(lolbinDb) && lolbinDb.length) return lolbinDb;
+  } catch (err) {
+    console.error("storage read failed, falling back to bundled DB:", err);
+  }
+  try {
+    const res = await fetch(chrome.runtime.getURL("data/lolbin_db.json"));
+    const data = await res.json();
+    // best-effort cache so subsequent opens are instant
+    chrome.storage.local.set({ lolbinDb: data }).catch(() => {});
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("failed to load bundled DB:", err);
+    return [];
+  }
+}
 
 function handleSearch() {
   const query = document.getElementById("searchBox").value.toLowerCase().trim();
@@ -65,7 +87,11 @@ function renderResults(entries) {
       <div class="copy-hint">Click command to copy</div>
       ${entry.detection_notes ? `<div class="detection-notes">🛡️ ${escapeHtml(entry.detection_notes)}</div>` : ""}
       <div class="references">
-        ${(entry.references || []).map(r => `<a href="${escapeAttr(r)}" target="_blank">Reference ↗</a>`).join(" ")}
+        ${(entry.references || [])
+          .map(safeUrl)
+          .filter(Boolean)
+          .map(r => `<a href="${escapeAttr(r)}" target="_blank" rel="noopener noreferrer">Reference ↗</a>`)
+          .join(" ")}
       </div>
     </div>
   `).join("");
@@ -89,25 +115,47 @@ async function handleSync() {
   document.getElementById("dbStatus").textContent = "Syncing...";
 
   chrome.runtime.sendMessage({ action: "syncProDatabase", apiKey }, (response) => {
+    const status = document.getElementById("dbStatus");
+    if (chrome.runtime.lastError || !response) {
+      status.textContent =
+        `Sync failed: ${chrome.runtime.lastError?.message || "no response from background"}`;
+      return;
+    }
     if (response.success) {
       chrome.storage.local.get("lolbinDb", ({ lolbinDb }) => {
-        db = lolbinDb;
-        document.getElementById("dbStatus").textContent =
-          `${db.length} entries (${response.newCount} updated)`;
+        db = Array.isArray(lolbinDb) ? lolbinDb : [];
+        status.textContent = `${db.length} entries (${response.newCount} updated)`;
         handleSearch();
       });
     } else {
-      document.getElementById("dbStatus").textContent = `Sync failed: ${response.error}`;
+      status.textContent = `Sync failed: ${response.error}`;
     }
   });
 }
 
 function escapeHtml(str) {
   const div = document.createElement("div");
-  div.textContent = str;
+  div.textContent = str == null ? "" : str;
   return div.innerHTML;
 }
 
 function escapeAttr(str) {
-  return String(str).replace(/"/g, """);
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Only permit http(s) reference links. Database entries can arrive from the
+// (untrusted) Pro sync backend, so a malicious "javascript:" or "data:" URL
+// must never become a clickable href. Returns "" for anything unsafe.
+function safeUrl(url) {
+  try {
+    const u = new URL(String(url), window.location.href);
+    return (u.protocol === "http:" || u.protocol === "https:") ? u.href : "";
+  } catch {
+    return "";
+  }
 }

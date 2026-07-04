@@ -3,19 +3,42 @@ Seed script to bulk-load LOLBin/GTFOBins entries into the database.
 Run: python -m app.seed_data
 """
 import json
+import os
+import sys
 from pathlib import Path
 from .database import SessionLocal, engine, Base
 from .models import LolbinEntry
 
 Base.metadata.create_all(bind=engine)
 
-# Load from the same JSON used by the extension for consistency
-DATA_PATH = Path(__file__).parent.parent.parent / "extension" / "data" / "lolbin_db.json"
+# Load from the same JSON used by the extension for consistency. The path can
+# be overridden with LOLBIN_DB_PATH (e.g. inside the Docker image, where the
+# repo layout differs from a local checkout).
+_DEFAULT_PATHS = [
+    Path(__file__).parent.parent.parent / "extension" / "data" / "lolbin_db.json",
+    Path(__file__).parent / "data" / "lolbin_db.json",  # Docker: copied next to app/
+]
+
+
+def _resolve_data_path() -> Path:
+    override = os.getenv("LOLBIN_DB_PATH")
+    if override:
+        return Path(override)
+    for p in _DEFAULT_PATHS:
+        if p.exists():
+            return p
+    return _DEFAULT_PATHS[0]
 
 
 def seed():
+    data_path = _resolve_data_path()
+    if not data_path.exists():
+        print(f"Seed data not found at {data_path}. "
+              f"Set LOLBIN_DB_PATH to the lolbin_db.json location.", file=sys.stderr)
+        sys.exit(1)
+
     db = SessionLocal()
-    with open(DATA_PATH) as f:
+    with open(data_path) as f:
         entries = json.load(f)
 
     for entry in entries:

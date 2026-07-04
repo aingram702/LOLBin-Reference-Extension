@@ -18,6 +18,10 @@ searchable browser extension with an optional team backend.
 - ☁️ Optional Pro backend: live-updated DB, private org notes, team sync
 - 🖥️ PowerShell/Python CLI companions for terminal-based lookup
 
+The bundled database ships with **142 curated entries** (58 Windows LOLBAS +
+84 Linux/Unix GTFOBins), each linking back to its authoritative source page.
+It can be regenerated or extended — see [Regenerating the database](#regenerating-the-database).
+
 ## Repository Structure
 - `extension/` — Chrome Extension (Manifest V3)
 - `backend/` — FastAPI backend for Pro/Team tier (live updates, custom entries)
@@ -32,7 +36,68 @@ searchable browser extension with an optional team backend.
 4. Pin the extension and start searching
 
 ### Backend (Pro/Team Tier — optional)
+The backend is optional — the extension is fully functional offline without it.
+Run it from the **repository root** (the compose file injects `DATABASE_URL`
+for the Postgres service automatically):
+
+```bash
+docker compose up --build
+# API is served on http://localhost:8000  (docs at /docs)
+```
+
+Seed the database with the shared entries (inside the running container):
+
+```bash
+docker compose exec backend python -m app.seed_data
+```
+
+To run the backend directly (without Docker), copy the example env first:
+
 ```bash
 cd backend
-cp .env.example .env
-docker compose up --build
+cp .env.example .env          # defaults to a local SQLite file
+python -m app.seed_data
+uvicorn app.main:app --reload
+```
+
+### CLI companions
+Both CLIs read the same `extension/data/lolbin_db.json`:
+
+```bash
+# Python
+python scripts/lolbin_lookup.py -n certutil
+python scripts/lolbin_lookup.py --os linux --category "Privilege Escalation"
+python scripts/lolbin_lookup.py --list-all
+
+# PowerShell
+./scripts/Get-LOLBinInfo.ps1 -Name certutil
+./scripts/Get-LOLBinInfo.ps1 -Os windows -Category Execution
+```
+
+## Regenerating the database
+`scripts/build_db.py` is the single source of truth for `lolbin_db.json`:
+
+```bash
+cd scripts
+python build_db.py           # write the bundled curated dataset (offline, default)
+python build_db.py --live    # fetch the COMPLETE upstream LOLBAS + GTFOBins
+                             # catalogs and write the full mirror (needs network
+                             # access to lolbas-project.github.io and github.com)
+```
+
+The curated dataset lives in `scripts/curated_entries.py`. The builder validates
+the schema, rejects duplicate IDs and non-http references, and sorts entries
+before writing.
+
+## Security
+See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the full review. Highlights:
+- The popup renders database content via HTML-escaping and only allows
+  `http(s)` reference links, so untrusted Pro-sync data cannot inject scripts.
+- The backend uses constant-time API-key comparison and validates all input.
+- Secrets (`.env`) and local databases are git-ignored.
+
+## Legal
+For **authorized** security testing and educational use only. This is a
+reference/lookup tool: it does not execute commands, deploy payloads, or
+interact with remote systems. Use only against systems you own or are
+explicitly authorized to test.
