@@ -96,6 +96,7 @@ def write(entries):
 # ---------------------------------------------------------------------------
 
 def _extract_frontmatter(raw):
+    raw = raw.lstrip("﻿")  # tolerate a UTF-8 BOM
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n", raw, re.S)
     return m.group(1) if m else ""
 
@@ -203,13 +204,24 @@ def _pretty_cat(name):
     return name.replace("-", " ").replace("_", " ").strip().title()
 
 
-def _gtfobins_sources(get):
-    """Yield (slug, raw_markdown) for every GTFOBins binary.
+def _is_gtfobins_page(raw):
+    """True if a markdown file is a GTFOBins binary page (has a functions block).
 
-    The GitHub *contents* API proved unreliable in some environments (it can
-    return an empty list, yielding zero Linux entries), so this prefers a
-    shallow ``git clone`` — which has no API rate limits and no listing quirks —
-    and falls back to the Git *trees* API only if git is unavailable.
+    We identify binary pages by content rather than by directory name, so the
+    build is resilient to the upstream repo's layout (the collection directory
+    name has moved/varied between checkouts).
+    """
+    fm = _extract_frontmatter(raw)
+    return bool(fm) and re.search(r"^functions\s*:", fm, re.M) is not None
+
+
+def _gtfobins_sources(get):
+    """Yield (slug, raw_markdown) for every GTFOBins binary page.
+
+    The GitHub *contents* API proved unreliable in some environments (returning
+    an empty list -> zero Linux entries), so this prefers a shallow ``git
+    clone`` and falls back to the Git *trees* API. Binary pages are located by
+    their ``functions:`` frontmatter, not by a hardcoded directory name.
     """
     import glob
     import os
@@ -225,14 +237,19 @@ def _gtfobins_sources(get):
             subprocess.run(
                 ["git", "clone", "--depth", "1", "--quiet", repo_url, td],
                 check=True, capture_output=True, text=True, timeout=600)
-            files = sorted(glob.glob(os.path.join(td, "_gtfobins", "*.md")))
-            print(f"  {len(files)} GTFOBins files cloned")
-            for f in files:
-                slug = os.path.basename(f)[:-3]
-                yield slug, Path(f).read_text(encoding="utf-8", errors="replace")
-            if files:
+            md_files = sorted(glob.glob(os.path.join(td, "**", "*.md"), recursive=True))
+            kept = 0
+            for f in md_files:
+                raw = Path(f).read_text(encoding="utf-8", errors="replace")
+                if _is_gtfobins_page(raw):
+                    kept += 1
+                    yield os.path.basename(f)[:-3], raw
+            print(f"  cloned {len(md_files)} .md files, {kept} are GTFOBins pages")
+            if kept:
                 return
-            print("  clone produced no _gtfobins/*.md; trying the GitHub API ...")
+            sample = [os.path.relpath(p, td) for p in md_files[:8]]
+            print(f"  no GTFOBins pages found in clone; sample paths: {sample}")
+            print("  trying the GitHub API ...")
     except FileNotFoundError:
         print("  git not found on PATH; falling back to the GitHub API ...")
     except subprocess.CalledProcessError as e:
@@ -251,14 +268,17 @@ def _gtfobins_sources(get):
         raise RuntimeError(
             f"Could not list GTFOBins files via the GitHub API ({msg!r}). "
             f"Install git (preferred) or set GITHUB_TOKEN and retry.")
-    paths = [t["path"] for t in tree["tree"]
-             if t.get("type") == "blob"
-             and t["path"].startswith("_gtfobins/") and t["path"].endswith(".md")]
-    print(f"  {len(paths)} GTFOBins files via API")
+    md_paths = [t["path"] for t in tree["tree"]
+                if t.get("type") == "blob" and t["path"].endswith(".md")]
+    print(f"  {len(md_paths)} .md files in tree; scanning for GTFOBins pages ...")
     raw_base = f"https://raw.githubusercontent.com/GTFOBins/GTFOBins.github.io/{branch}"
-    for p in paths:
-        slug = p[len("_gtfobins/"):-3]
-        yield slug, get(f"{raw_base}/{p}").decode("utf-8", "replace")
+    kept = 0
+    for p in md_paths:
+        raw = get(f"{raw_base}/{p}").decode("utf-8", "replace")
+        if _is_gtfobins_page(raw):
+            kept += 1
+            yield os.path.basename(p)[:-3], raw
+    print(f"  {kept} GTFOBins pages via API")
 
 
 # ---------------------------------------------------------------------------
