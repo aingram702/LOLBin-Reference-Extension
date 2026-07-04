@@ -203,6 +203,64 @@ def _pretty_cat(name):
     return name.replace("-", " ").replace("_", " ").strip().title()
 
 
+def _gtfobins_sources(get):
+    """Yield (slug, raw_markdown) for every GTFOBins binary.
+
+    The GitHub *contents* API proved unreliable in some environments (it can
+    return an empty list, yielding zero Linux entries), so this prefers a
+    shallow ``git clone`` — which has no API rate limits and no listing quirks —
+    and falls back to the Git *trees* API only if git is unavailable.
+    """
+    import glob
+    import os
+    import subprocess
+    import tempfile
+
+    repo_url = "https://github.com/GTFOBins/GTFOBins.github.io.git"
+
+    # --- Strategy 1: shallow clone (preferred) ------------------------------
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            print("Cloning GTFOBins repository (shallow) ...")
+            subprocess.run(
+                ["git", "clone", "--depth", "1", "--quiet", repo_url, td],
+                check=True, capture_output=True, text=True, timeout=600)
+            files = sorted(glob.glob(os.path.join(td, "_gtfobins", "*.md")))
+            print(f"  {len(files)} GTFOBins files cloned")
+            for f in files:
+                slug = os.path.basename(f)[:-3]
+                yield slug, Path(f).read_text(encoding="utf-8", errors="replace")
+            if files:
+                return
+            print("  clone produced no _gtfobins/*.md; trying the GitHub API ...")
+    except FileNotFoundError:
+        print("  git not found on PATH; falling back to the GitHub API ...")
+    except subprocess.CalledProcessError as e:
+        detail = (e.stderr or "").strip().splitlines()[-1:] or [str(e)]
+        print(f"  git clone failed ({detail[0][:120]}); falling back to the GitHub API ...")
+    except Exception as e:  # pragma: no cover - defensive
+        print(f"  clone error ({e}); falling back to the GitHub API ...")
+
+    # --- Strategy 2: Git trees API (recursive) ------------------------------
+    api = "https://api.github.com/repos/GTFOBins/GTFOBins.github.io"
+    meta = json.loads(get(api))
+    branch = meta.get("default_branch", "master") if isinstance(meta, dict) else "master"
+    tree = json.loads(get(f"{api}/git/trees/{branch}?recursive=1"))
+    if not isinstance(tree, dict) or "tree" not in tree:
+        msg = tree.get("message") if isinstance(tree, dict) else str(tree)[:120]
+        raise RuntimeError(
+            f"Could not list GTFOBins files via the GitHub API ({msg!r}). "
+            f"Install git (preferred) or set GITHUB_TOKEN and retry.")
+    paths = [t["path"] for t in tree["tree"]
+             if t.get("type") == "blob"
+             and t["path"].startswith("_gtfobins/") and t["path"].endswith(".md")]
+    print(f"  {len(paths)} GTFOBins files via API")
+    raw_base = f"https://raw.githubusercontent.com/GTFOBins/GTFOBins.github.io/{branch}"
+    for p in paths:
+        slug = p[len("_gtfobins/"):-3]
+        yield slug, get(f"{raw_base}/{p}").decode("utf-8", "replace")
+
+
 # ---------------------------------------------------------------------------
 # Live mode: build the complete mirror from upstream sources
 # ---------------------------------------------------------------------------
@@ -210,14 +268,20 @@ def _pretty_cat(name):
 def build_live():
     """Fetch and transform the full LOLBAS + GTFOBins datasets.
 
-    Kept dependency-light: uses urllib for LOLBAS' JSON API and the GitHub
-    contents API for GTFOBins markdown. Run this on a machine with network
-    access to regenerate the complete database.
+    Kept dependency-light: uses urllib for LOLBAS' JSON API and a shallow
+    ``git clone`` (falling back to the GitHub trees API) for GTFOBins markdown.
+    Run this on a machine with network access to regenerate the full database.
     """
+    import os
     import urllib.request
 
+    token = os.getenv("GITHUB_TOKEN")
+
     def get(url):
-        req = urllib.request.Request(url, headers={"User-Agent": "lolbin-build/1.0"})
+        headers = {"User-Agent": "lolbin-build/1.0"}
+        if token and "api.github.com" in url:
+            headers["Authorization"] = f"Bearer {token}"
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=60) as r:
             return r.read()
 
@@ -283,25 +347,7 @@ def build_live():
         })
 
     # ---- GTFOBins (Linux) --------------------------------------------------
-    # The directory listing is a single api.github.com call (rate-limited to
-    # 60/hr unauthenticated); set GITHUB_TOKEN to raise it to 5000/hr. The
-    # per-file downloads use raw.githubusercontent.com and are not API-limited.
-    print("Fetching GTFOBins index ...")
-    listing = json.loads(get(
-        "https://api.github.com/repos/GTFOBins/GTFOBins.github.io/contents/_gtfobins"))
-    if not isinstance(listing, list):
-        msg = listing.get("message") if isinstance(listing, dict) else str(listing)
-        raise RuntimeError(
-            f"GitHub API did not return a file list ({msg!r}). "
-            f"This is usually rate limiting — set GITHUB_TOKEN and retry.")
-
-    md_files = [it for it in listing if it.get("name", "").endswith(".md")]
-    print(f"  {len(md_files)} GTFOBins entries to fetch ...")
-    gtfo_count = 0
-    for item in md_files:
-        slug = item["name"][:-3]
-        raw = get(item["download_url"]).decode("utf-8", "replace")
-
+    def make_gtfo_entry(slug, raw):
         functions, descriptions = parse_gtfobins(raw)
         cmds = [code for _, codes in functions for code in codes]
         cat_names = [name for name, _ in functions]
@@ -314,7 +360,7 @@ def build_live():
             f"Exact abuse depends on the SUID bit, sudo rights, or capabilities "
             f"granted to it — see the reference for each context.")
 
-        entries.append({
+        return {
             "id": uid(slug, "nix"),
             "name": slug,
             "os": "linux",
@@ -327,10 +373,16 @@ def build_live():
                                "shell or reading/writing sensitive files outside its "
                                "normal role.",
             "references": [gtfo(slug)],
-        })
+        }
+
+    gtfo_count = 0
+    for slug, raw in _gtfobins_sources(get):
+        entries.append(make_gtfo_entry(slug, raw))
         gtfo_count += 1
 
     print(f"  built {gtfo_count} GTFOBins (linux) entries")
+    if gtfo_count == 0:
+        raise RuntimeError("No GTFOBins entries were built — check network/git access.")
     return entries
 
 
