@@ -156,20 +156,6 @@ body {
   color: #888;
 }
 
-#syncBtn {
-  background: none;
-  border: 1px solid #444;
-  color: #ccc;
-  border-radius: 4px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 10px;
-}
-
-#syncBtn:hover {
-  border-color: #4fc3f7;
-}
-
 .no-results {
   text-align: center;
   color: #666;

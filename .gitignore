@@ -20,3 +20,6 @@ venv/
 Thumbs.db
 .idea/
 .vscode/
+
+# Packaged extension builds
+dist/

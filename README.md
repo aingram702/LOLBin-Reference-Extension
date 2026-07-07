@@ -14,9 +14,14 @@ searchable browser extension with an optional team backend.
 - 🔍 Instant search of Windows LOLBins and Linux GTFOBins-style binaries
 - 📋 One-click copy of example commands
 - 🛡️ Detection engineering notes per technique (Sigma-style guidance)
-- 🔄 Offline-first: full database bundled locally, works without internet
-- ☁️ Optional Pro backend: live-updated DB, private org notes, team sync
+- 🔄 Fully offline: full database bundled locally, no network access at all
 - 🖥️ PowerShell/Python CLI companions for terminal-based lookup
+
+The published Chrome extension is offline-only by design — it requests no
+host permissions and makes no network requests. A `backend/` FastAPI service
+for a future team/Pro tier (live-updated DB, org notes, sync) lives in this
+repo but is **not** wired into the extension build submitted to the Chrome
+Web Store; see [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for details.
 
 The bundled database ships with **142 curated entries** (58 Windows LOLBAS +
 84 Linux/Unix GTFOBins), each linking back to its authoritative source page.
@@ -91,9 +96,13 @@ before writing.
 
 ## Security
 See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the full review. Highlights:
+- The extension requests no host permissions and makes no network requests —
+  the bundled `data/lolbin_db.json` is the only data source.
 - The popup renders database content via HTML-escaping and only allows
-  `http(s)` reference links, so untrusted Pro-sync data cannot inject scripts.
-- The backend uses constant-time API-key comparison and validates all input.
+  `http(s)` reference links, so a malicious `javascript:`/`data:` URL in the
+  database can never become a clickable link.
+- The backend (not part of the published extension) uses constant-time
+  API-key comparison and validates all input.
 - Secrets (`.env`) and local databases are git-ignored.
 
 ## Legal
