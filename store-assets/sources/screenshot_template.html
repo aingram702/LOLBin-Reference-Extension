@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1280px; height: 800px;
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: radial-gradient(circle at 15% 10%, #1c2b1c 0%, #14181c 40%, #0b0d0f 100%);
+    position: relative;
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,195,247,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,195,247,0.045) 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+  .caption {
+    position: relative;
+    text-align: center;
+    padding-top: 56px;
+  }
+  .caption h1 {
+    font-size: 40px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  .caption h1 .accent { color: #4fc3f7; }
+  .caption p {
+    font-size: 19px;
+    color: #a7b7bf;
+    margin-top: 10px;
+    font-weight: 500;
+  }
+
+  .browser-frame {
+    position: relative;
+    width: 900px;
+    margin: 44px auto 0;
+    background: #2b2b2e;
+    border-radius: 10px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.55);
+    overflow: hidden;
+    border: 1px solid #3a3a3d;
+  }
+  .browser-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #323235;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.red { background: #ff5f57; }
+  .dot.yellow { background: #febc2e; }
+  .dot.green { background: #28c840; }
+  .browser-addressbar {
+    flex: 1;
+    margin-left: 12px;
+    background: #1f1f22;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    color: #9aa0a6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .browser-body {
+    height: 66px;
+    background: #202124;
+    position: relative;
+  }
+  .toolbar-icon {
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: #17181a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #4fc3f7;
+  }
+  .toolbar-icon img { width: 28px; height: 28px; border-radius: 6px; }
+  .popup-anchor {
+    position: absolute;
+    top: 64px;
+    right: 16px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    border: 1px solid #333;
+  }
+  .popup-anchor img { display: block; width: 420px; }
+  .callout-space { height: 640px; background: #1a1b1d; }
+</style>
+</head>
+<body>
+  <div class="grid-overlay"></div>
+  <div class="caption">
+    <h1>__TITLE__</h1>
+    <p>__SUBTITLE__</p>
+  </div>
+  <div class="browser-frame">
+    <div class="browser-topbar">
+      <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+      <div class="browser-addressbar">🔒 example-target-host.local</div>
+    </div>
+    <div class="browser-body">
+      <div class="toolbar-icon"><img src="data:image/png;base64,__ICON_B64__" /></div>
+      <div class="popup-anchor"><img src="data:image/png;base64,__SCREENSHOT_B64__" /></div>
+    </div>
+    <div class="callout-space"></div>
+  </div>
+</body>
+</html>

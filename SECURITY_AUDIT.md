@@ -126,3 +126,17 @@ virtualenvs, and editor/OS cruft.
    with the scheme fixes above, treat all synced fields as untrusted.
 5. **CSP.** The MV3 default CSP (no inline script) is relied upon — keep
    `popup.html` free of inline handlers/scripts (currently compliant).
+
+---
+
+## Update — Chrome Web Store submission build (2026-07-07)
+Residual risks #3 and #4 above are resolved for the *published extension* by
+removing the Pro-sync feature from this build entirely: `host_permissions`,
+`background.js`'s `syncWithBackend`/`mergeEntries`, and the popup's "Sync Pro"
+button/handler were deleted. `https://api.yourdomain.com` was always a
+placeholder with no real backend deployed, so the shipped extension now
+requests only `storage` and `clipboardWrite` — no host permissions, no network
+egress, no untrusted remote data path into the popup. The findings above
+(H2, M1, M4, L1, and residual risks #1/#2/#4) remain accurate for the
+`backend/` FastAPI service and apply if/when a Pro-sync tier is reintroduced
+as a separate, explicitly-permissioned build.

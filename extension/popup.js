@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderResults(db);
 
   document.getElementById("searchBox").addEventListener("input", handleSearch);
-  document.getElementById("syncBtn").addEventListener("click", handleSync);
 
   document.querySelectorAll(".filter-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -108,31 +107,6 @@ function renderResults(entries) {
   });
 }
 
-async function handleSync() {
-  const apiKey = prompt("Enter your Pro API key to sync the live database:");
-  if (!apiKey) return;
-
-  document.getElementById("dbStatus").textContent = "Syncing...";
-
-  chrome.runtime.sendMessage({ action: "syncProDatabase", apiKey }, (response) => {
-    const status = document.getElementById("dbStatus");
-    if (chrome.runtime.lastError || !response) {
-      status.textContent =
-        `Sync failed: ${chrome.runtime.lastError?.message || "no response from background"}`;
-      return;
-    }
-    if (response.success) {
-      chrome.storage.local.get("lolbinDb", ({ lolbinDb }) => {
-        db = Array.isArray(lolbinDb) ? lolbinDb : [];
-        status.textContent = `${db.length} entries (${response.newCount} updated)`;
-        handleSearch();
-      });
-    } else {
-      status.textContent = `Sync failed: ${response.error}`;
-    }
-  });
-}
-
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str == null ? "" : str;
@@ -148,9 +122,8 @@ function escapeAttr(str) {
     .replace(/>/g, "&gt;");
 }
 
-// Only permit http(s) reference links. Database entries can arrive from the
-// (untrusted) Pro sync backend, so a malicious "javascript:" or "data:" URL
-// must never become a clickable href. Returns "" for anything unsafe.
+// Only permit http(s) reference links, so a "javascript:" or "data:" URL
+// can never become a clickable href. Returns "" for anything unsafe.
 function safeUrl(url) {
   try {
     const u = new URL(String(url), window.location.href);

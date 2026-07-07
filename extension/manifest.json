@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Quick lookup for Living-off-the-Land Binaries during authorized red team engagements.",
   "permissions": ["storage", "clipboardWrite"],
-  "host_permissions": ["https://api.yourdomain.com/*"],
   "background": {
     "service_worker": "background.js"
   },
